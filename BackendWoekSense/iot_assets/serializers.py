@@ -1,9 +1,4 @@
 from rest_framework import serializers
-<<<<<<< HEAD
-from .models import SmartDustbin, BinVolumeData, AlertEvent
-
-# Placeholder - serializers to be extended
-=======
 from .models import IoTDevice, SensorReading
 
 
@@ -32,4 +27,3 @@ class IoTDeviceSerializer(serializers.ModelSerializer):
         if reading:
             return SensorReadingSerializer(reading).data
         return None
->>>>>>> dc4d18bafcd4ef40f049d51a2ce3d7f6304db71e

@@ -1,51 +1,13 @@
-<<<<<<< HEAD
+from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from rest_framework import serializers
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-
 User = get_user_model()
-
-=======
-from rest_framework import serializers
-from django.contrib.auth.models import User
 from .models import UserProfile, DeviceSession
 from django.utils import timezone
 from datetime import timedelta
->>>>>>> copilot/vscode-mn4q5as7-92i0
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-<<<<<<< HEAD
-        fields = ['id', 'username', 'email', 'first_name', 'last_name',
-                  'role', 'phone', 'department', 'employee_id', 'is_active']
-        read_only_fields = ['id']
-
-
-class UserCreateSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, min_length=8)
-
-    class Meta:
-        model = User
-        fields = ['username', 'email', 'password', 'first_name', 'last_name',
-                  'role', 'phone', 'department', 'employee_id']
-
-    def create(self, validated_data):
-        password = validated_data.pop('password')
-        user = User(**validated_data)
-        user.set_password(password)
-        user.save()
-        return user
-
-
-class WorkSenseTokenSerializer(TokenObtainPairSerializer):
-    def validate(self, attrs):
-        data = super().validate(attrs)
-        data['role'] = self.user.role
-        data['user_id'] = self.user.id
-        data['username'] = self.user.username
-        return data
-=======
         fields = ['id', 'username', 'email', 'first_name', 'last_name']
         read_only_fields = ['id']
 
@@ -63,8 +25,8 @@ class RegisterSerializer(serializers.Serializer):
     """Serializer for user registration"""
     username = serializers.CharField(write_only=True, required=True)
     email = serializers.EmailField(write_only=True, required=True)
-    password = serializers.CharField(write_only=True, required=True, min_length=8)
-    phone_device_id = serializers.CharField(write_only=True, required=True)
+    password = serializers.CharField(write_only=True, required=True)
+    phone_device_id = serializers.CharField(write_only=True, required=False, allow_blank=True, default='web_device')
     role = serializers.ChoiceField(choices=['WORKER', 'SUPERVISOR', 'ADMIN'], default='WORKER')
     first_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
     last_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
@@ -84,7 +46,7 @@ class RegisterSerializer(serializers.Serializer):
         return value
     
     def validate_phone_device_id(self, value):
-        if UserProfile.objects.filter(phone_device_id=value).exists():
+        if value and value != 'web_device' and UserProfile.objects.filter(phone_device_id=value).exists():
             raise serializers.ValidationError("Device already registered to another user.")
         return value
     
@@ -93,7 +55,7 @@ class RegisterSerializer(serializers.Serializer):
         username = validated_data.pop('username')
         email = validated_data.pop('email')
         password = validated_data.pop('password')
-        phone_device_id = validated_data.pop('phone_device_id')
+        phone_device_id = validated_data.pop('phone_device_id', 'web_device')
         role = validated_data.pop('role', 'WORKER')
         first_name = validated_data.pop('first_name', '')
         last_name = validated_data.pop('last_name', '')
@@ -139,7 +101,7 @@ class LoginSerializer(serializers.Serializer):
     """Serializer for user login"""
     username = serializers.CharField(write_only=True)
     password = serializers.CharField(write_only=True)
-    phone_device_id = serializers.CharField(write_only=True)
+    phone_device_id = serializers.CharField(write_only=True, required=False, allow_blank=True)
     
     user = UserSerializer(read_only=True)
     profile = UserProfileSerializer(read_only=True)
@@ -164,9 +126,9 @@ class LoginSerializer(serializers.Serializer):
         except UserProfile.DoesNotExist:
             raise serializers.ValidationError("User profile not found.")
         
-        # Validate device
-        if profile.phone_device_id != phone_device_id:
-            raise serializers.ValidationError("Device not registered for this user.")
+        # Validate device is ignored since requirements are removed
+        # if profile.phone_device_id != phone_device_id:
+        #     raise serializers.ValidationError("Device not registered for this user.")
         
         data['user'] = user
         data['profile'] = profile
@@ -175,7 +137,7 @@ class LoginSerializer(serializers.Serializer):
     def create(self, validated_data):
         user = validated_data['user']
         profile = validated_data['profile']
-        phone_device_id = validated_data['phone_device_id']
+        phone_device_id = validated_data.get('phone_device_id', profile.phone_device_id)
         
         # Get or create token
         from rest_framework.authtoken.models import Token
@@ -255,4 +217,3 @@ class DeviceRegistrationSerializer(serializers.Serializer):
             'is_registered': is_registered,
             'message': message
         }
->>>>>>> copilot/vscode-mn4q5as7-92i0

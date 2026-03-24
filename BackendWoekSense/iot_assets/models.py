@@ -58,7 +58,6 @@ class AlertEvent(models.Model):
     def __str__(self):
         return f"{self.dustbin.bin_id} - {self.status}"
 
-<<<<<<< HEAD
 
 class IoTDevice(models.Model):
     TYPE_CHOICES = [
@@ -108,5 +107,3 @@ class SensorReading(models.Model):
 
     def __str__(self):
         return f"{self.device.device_id}: {self.metric}={self.value}{self.unit}"
-=======
->>>>>>> copilot/vscode-mn4q5as7-92i0

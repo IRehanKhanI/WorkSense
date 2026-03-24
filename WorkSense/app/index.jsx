@@ -9,6 +9,12 @@ export default function Index() {
             <Link href="/(auth)/login" style={styles.link}>
                 Proceed to Login
             </Link>
+            
+            <View style={styles.spacer} />
+
+            <Link href="/(auth)/register" style={styles.outlineLink}>
+                Create an Account
+            </Link>
         </View>
     );
 }
@@ -35,5 +41,20 @@ const styles = StyleSheet.create({
         paddingHorizontal: 24,
         borderRadius: 8,
         overflow: 'hidden',
+    },
+    spacer: {
+        height: 16,
+    },
+    outlineLink: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#419d78',
+        paddingVertical: 12,
+        paddingHorizontal: 24,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#419d78',
+        overflow: 'hidden',
+        textAlign: 'center',
     },
 });

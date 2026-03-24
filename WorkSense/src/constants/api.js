@@ -13,31 +13,22 @@ const apiClient = axios.create({
     headers: { 'Content-Type': 'application/json' },
 });
 
-// Attach JWT access token to every outgoing request
+// Attach DRF Token to every outgoing request
 apiClient.interceptors.request.use(async (config) => {
     const token = await AsyncStorage.getItem('access_token');
     if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+        config.headers.Authorization = `Token ${token}`;
     }
     return config;
 });
 
-// Auto-refresh on 401
+// Logout on 401 Unauthorized since DRF Token doesn't support automatic refresh
 apiClient.interceptors.response.use(
     (response) => response,
     async (error) => {
-        const originalRequest = error.config;
-        if (error.response?.status === 401 && !originalRequest._retry) {
-            originalRequest._retry = true;
-            try {
-                const refresh = await AsyncStorage.getItem('refresh_token');
-                const res = await axios.post(`${BASE_URL}/auth/refresh/`, { refresh });
-                await AsyncStorage.setItem('access_token', res.data.access);
-                originalRequest.headers.Authorization = `Bearer ${res.data.access}`;
-                return apiClient(originalRequest);
-            } catch {
-                await AsyncStorage.multiRemove(['access_token', 'refresh_token', 'user']);
-            }
+        if (error.response?.status === 401) {
+            await AsyncStorage.multiRemove(['access_token', 'user']);
+            // The app state or navigation should ideally handle directing the user to login.
         }
         return Promise.reject(error);
     }

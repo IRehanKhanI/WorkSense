@@ -11,7 +11,6 @@ import { LineChart, BarChart } from 'react-native-chart-kit';
 
 const screenWidth = Dimensions.get('window').width;
 
-// Theme Configuration based on your palette
 const COLORS = {
     darkBg: '#0F172A',
     cardBg: '#1E293B',
@@ -23,7 +22,6 @@ const COLORS = {
 };
 
 const AdminDashboard = () => {
-    // Function to show "Audit Trail" Raw Data (The "i" Button logic)
     const showAuditData = (title, rawValue) => {
         Alert.alert(
             `Audit Trail: ${title}`,

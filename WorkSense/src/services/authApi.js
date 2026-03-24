@@ -9,13 +9,32 @@ import axios from 'axios';
  */
 export async function login(username, password) {
     const response = await axios.post(`${BASE_URL}/auth/login/`, { username, password });
-    const { access, refresh, role, user_id, username: uname } = response.data;
+    
+    // The backend uses DRF Token Authentication.
+    // It returns: { token, user: {id, username}, profile: {role, phone_device_id} }
+    const { token, user, profile } = response.data;
+    
     await AsyncStorage.multiSet([
-        ['access_token', access],
-        ['refresh_token', refresh],
-        ['user', JSON.stringify({ role, user_id, username: uname })],
+        ['access_token', token],
+        ['user', JSON.stringify({ role: profile.role, user_id: user.id, username: user.username })],
     ]);
-    return { role, user_id, username: uname };
+    return { role: profile.role, user_id: user.id, username: user.username };
+}
+
+export async function register(username, email, password, deviceId, role) {
+    const payload = { username, email, password, role };
+    // Optionally include deviceId if provided
+    if (deviceId) {
+        payload.phone_device_id = deviceId;
+    }
+    const response = await axios.post(`${BASE_URL}/auth/register/`, payload);
+    
+    const { token, user, profile } = response.data;
+    await AsyncStorage.multiSet([
+        ['access_token', token],
+        ['user', JSON.stringify({ role: profile.role, user_id: user.id, username: user.username })],
+    ]);
+    return { role: profile.role, user_id: user.id, username: user.username };
 }
 
 /** Remove all auth tokens from storage. */

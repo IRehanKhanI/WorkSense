@@ -35,7 +35,7 @@ class AttendanceLog(models.Model):
         ('REJECTED', 'Rejected'),
     ]
     
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='attendance_logs')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='attendance_logs')
     clock_in_lat = models.FloatField()
     clock_in_lon = models.FloatField()
     clock_in_time = models.DateTimeField(auto_now_add=True)  # Server time, not phone time
@@ -69,7 +69,6 @@ class AttendanceLog(models.Model):
     def __str__(self):
         return f"{self.user.username} - {self.clock_in_time} ({self.attendance_status})"
 
-<<<<<<< HEAD
 
 class AttendanceRecord(models.Model):
     STATUS_CHOICES = [
@@ -109,5 +108,3 @@ class AttendanceRecord(models.Model):
 
     def __str__(self):
         return f"{self.user.username} – {self.date} ({self.status})"
-=======
->>>>>>> copilot/vscode-mn4q5as7-92i0

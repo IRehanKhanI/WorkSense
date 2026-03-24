@@ -1,19 +1,9 @@
 from django.contrib import admin
-<<<<<<< HEAD
-from .models import Task
-=======
-from .models import Task, TaskProof, TaskSLA
->>>>>>> copilot/vscode-mn4q5as7-92i0
+from .models import Task, TaskProof, TaskSLA, CleaningMetrics, VerificationResult
 
 
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):
-<<<<<<< HEAD
-    list_display = ['title', 'priority', 'status', 'assigned_to', 'due_date', 'created_at']
-    list_filter = ['status', 'priority']
-    search_fields = ['title', 'assigned_to__username']
-    ordering = ['-created_at']
-=======
     list_display = ['task_id', 'assigned_to', 'task_type', 'status', 'assigned_date']
     list_filter = ['status', 'task_type', 'assigned_date']
     search_fields = ['task_id', 'assigned_to__username', 'description']
@@ -57,15 +47,6 @@ class TaskSLAAdmin(admin.ModelAdmin):
         ('Timestamps', {'fields': ('created_at', 'updated_at'), 'classes': ('collapse',)}),
     )
 
-        ('Results', {
-            'fields': ('recommendation_message', 'error_message')
-        }),
-        ('Timestamps', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
-    )
-
 
 @admin.register(CleaningMetrics)
 class CleaningMetricsAdmin(admin.ModelAdmin):
@@ -92,4 +73,3 @@ class CleaningMetricsAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
->>>>>>> copilot/vscode-mn4q5as7-92i0

@@ -50,7 +50,6 @@ class HeatmapDataPoint(models.Model):
     def __str__(self):
         return f"({self.grid_lat:.4f}, {self.grid_lon:.4f}) - Density: {self.complaint_density}"
 
-<<<<<<< HEAD
 
 class Report(models.Model):
     TYPE_CHOICES = [
@@ -84,5 +83,3 @@ class Report(models.Model):
 
     def __str__(self):
         return f"{self.title} ({self.report_type}) – {self.generated_at:%Y-%m-%d}"
-=======
->>>>>>> copilot/vscode-mn4q5as7-92i0

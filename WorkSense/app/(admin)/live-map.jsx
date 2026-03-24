@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, Alert, FlatList, TouchableOpacity } from 'react-native';
 import { fetchVehicles } from '../../src/services/locationApi';
@@ -134,14 +133,3 @@ const styles = StyleSheet.create({
     statusDot: { width: 10, height: 10, borderRadius: 5 },
     empty: { color: COLORS.textSecondary, textAlign: 'center', marginTop: SPACING.xxl },
 });
-=======
-import { View, Text } from 'react-native';
-
-export default function LiveMap() {
-    return (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <Text>Live Map</Text>
-        </View>
-    );
-}
->>>>>>> copilot/vscode-mn4q5as7-92i0

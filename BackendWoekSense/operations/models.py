@@ -6,53 +6,6 @@ from django.utils import timezone
 
 
 class Task(models.Model):
-<<<<<<< HEAD
-    PRIORITY_CHOICES = [
-        ('low', 'Low'),
-        ('medium', 'Medium'),
-        ('high', 'High'),
-        ('urgent', 'Urgent'),
-    ]
-    STATUS_CHOICES = [
-        ('pending', 'Pending'),
-        ('in_progress', 'In Progress'),
-        ('completed', 'Completed'),
-        ('cancelled', 'Cancelled'),
-    ]
-
-    title = models.CharField(max_length=200)
-    description = models.TextField(blank=True)
-    priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default='medium')
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
-
-    assigned_to = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='assigned_tasks',
-    )
-    created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        related_name='created_tasks',
-    )
-
-    due_date = models.DateTimeField(null=True, blank=True)
-    location = models.CharField(max_length=255, blank=True)
-    location_lat = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
-    location_lng = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        ordering = ['-created_at']
-
-    def __str__(self):
-        return f"[{self.priority.upper()}] {self.title} – {self.status}"
-=======
     """Tasks assigned to workers"""
     TASK_TYPE_CHOICES = [
         ('SWEEPING', 'Sweeping'),
@@ -70,8 +23,8 @@ class Task(models.Model):
     ]
     
     task_id = models.CharField(max_length=100, unique=True)
-    assigned_to = models.ForeignKey(User, on_delete=models.CASCADE, related_name='assigned_tasks')
-    assigned_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_tasks')
+    assigned_to = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='assigned_tasks')
+    assigned_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='created_tasks')
     
     task_type = models.CharField(max_length=50, choices=TASK_TYPE_CHOICES)
     description = models.TextField()
@@ -141,6 +94,16 @@ class TaskSLA(models.Model):
     def __str__(self):
         return f"{self.task.task_id} - {self.duration_minutes}min (SLA: {'MET' if self.sla_met else 'MISSED'})"
 
+class VerificationResult(models.Model):
+    VERIFICATION_STATUS_CHOICES = [
+        ('verified_clean', 'Verified Clean'),
+        ('incomplete', 'Incomplete'),
+        ('failed', 'Failed'),
+    ]
+    task = models.OneToOneField(Task, on_delete=models.CASCADE, related_name='verification_result')
+    verification_status = models.CharField(max_length=20, choices=VERIFICATION_STATUS_CHOICES, default='failed')
+    cleanup_confidence = models.FloatField(null=True, blank=True)
+
     recommendation_message = models.TextField(blank=True)
     
     # Metadata
@@ -157,13 +120,13 @@ class TaskSLA(models.Model):
         ordering = ['-created_at']
     
     def __str__(self):
-        return f"Verification for {self.cleaning_task.task_id} - {self.verification_status}"
+        return f"Verification for {self.task.task_id} - {self.verification_status}"
 
 
 class CleaningMetrics(models.Model):
     """Track metrics for cleaning verification system."""
     
-    worker = models.OneToOneField(User, on_delete=models.CASCADE, related_name='cleaning_metrics')
+    worker = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='cleaning_metrics')
     
     total_tasks = models.IntegerField(default=0)
     completed_tasks = models.IntegerField(default=0)
@@ -178,15 +141,13 @@ class CleaningMetrics(models.Model):
     
     def calculate_metrics(self):
         """Recalculate worker's metrics."""
-        from django.db.models import Q
-        
-        tasks = CleaningTask.objects.filter(worker=self.worker)
+        tasks = Task.objects.filter(assigned_to=self.worker)
         verifications = VerificationResult.objects.filter(
-            cleaning_task__worker=self.worker
+            task__assigned_to=self.worker
         )
         
         self.total_tasks = tasks.count()
-        self.completed_tasks = tasks.filter(status='completed').count()
+        self.completed_tasks = tasks.filter(status='COMPLETED').count()
         self.verified_clean = verifications.filter(
             verification_status='verified_clean'
         ).count()
@@ -211,4 +172,3 @@ class CleaningMetrics(models.Model):
     
     def __str__(self):
         return f"Metrics for {self.worker.username}"
->>>>>>> copilot/vscode-mn4q5as7-92i0

@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.contrib.auth.models import User
@@ -11,7 +12,7 @@ class UserProfile(models.Model):
         ('ADMIN', 'Admin'),
     ]
     
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='profile')
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='WORKER')
     phone_device_id = models.CharField(max_length=255, unique=True)
     is_device_registered = models.BooleanField(default=False)
@@ -52,7 +53,6 @@ class DeviceSession(models.Model):
     def is_active(self):
         return self.status == 'ACTIVE' and timezone.now() < self.expires_at
 
-<<<<<<< HEAD
 
 class User(AbstractUser):
     ROLE_CHOICES = [
@@ -70,5 +70,3 @@ class User(AbstractUser):
 
     def __str__(self):
         return f"{self.username} ({self.role})"
-=======
->>>>>>> copilot/vscode-mn4q5as7-92i0

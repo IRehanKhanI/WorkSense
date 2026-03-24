@@ -1,15 +1,4 @@
 from django.contrib import admin
-<<<<<<< HEAD
-from .models import AttendanceRecord
-
-
-@admin.register(AttendanceRecord)
-class AttendanceRecordAdmin(admin.ModelAdmin):
-    list_display = ['user', 'date', 'status', 'clock_in', 'clock_out', 'is_geofence_valid']
-    list_filter = ['status', 'date', 'is_geofence_valid']
-    search_fields = ['user__username']
-    ordering = ['-date']
-=======
 from .models import WorkZone, AttendanceLog
 
 
@@ -42,4 +31,3 @@ class AttendanceLogAdmin(admin.ModelAdmin):
         ('Timestamps', {'fields': ('clock_in_time', 'created_at', 'updated_at'), 'classes': ('collapse',)}),
     )
 
->>>>>>> copilot/vscode-mn4q5as7-92i0

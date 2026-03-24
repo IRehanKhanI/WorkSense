@@ -1,9 +1,4 @@
 from rest_framework import serializers
-<<<<<<< HEAD
-from .models import Vehicle, GpsLocation, RouteDeviation
-
-# Placeholder - serializers to be extended
-=======
 from .models import Vehicle, VehicleLocation
 
 
@@ -32,4 +27,3 @@ class VehicleSerializer(serializers.ModelSerializer):
         if loc:
             return VehicleLocationSerializer(loc).data
         return None
->>>>>>> dc4d18bafcd4ef40f049d51a2ce3d7f6304db71e

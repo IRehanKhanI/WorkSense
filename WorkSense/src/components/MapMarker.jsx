@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import { View, Text, StyleSheet } from 'react-native';
 import { COLORS, FONT_SIZES, RADIUS, SPACING } from '../constants/theme';
 
@@ -52,20 +51,3 @@ const styles = StyleSheet.create({
         borderColor: COLORS.white,
     },
 });
-=======
-import { Marker } from "react-native-maps";
-
-export default function MapMarker({ location }) {
-    return (
-        <Marker
-            coordinate={{
-                latitude: location.latitude,
-                longitude: location.longitude,
-            }}
-            title="Worker"
-            description="Live Location"
-            pinColor="blue"
-        />
-    );
-}
->>>>>>> copilot/vscode-mn4q5as7-92i0

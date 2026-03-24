@@ -1,51 +1,13 @@
-<<<<<<< HEAD
-from rest_framework import viewsets, permissions
-from .models import Task
-from .serializers import TaskSerializer
-
-
-class IsAdminOrSupervisor(permissions.BasePermission):
-    def has_permission(self, request, view):
-        return request.user.is_authenticated and request.user.role in ('admin', 'supervisor')
-
-
-class TaskViewSet(viewsets.ModelViewSet):
-    serializer_class = TaskSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get_queryset(self):
-        user = self.request.user
-        if user.role in ('admin', 'supervisor'):
-            qs = Task.objects.all()
-        else:
-            qs = Task.objects.filter(assigned_to=user)
-
-        status_filter = self.request.query_params.get('status')
-        priority_filter = self.request.query_params.get('priority')
-        if status_filter:
-            qs = qs.filter(status=status_filter)
-        if priority_filter:
-            qs = qs.filter(priority=priority_filter)
-        return qs.select_related('assigned_to', 'created_by')
-
-    def get_permissions(self):
-        if self.action in ['create', 'destroy']:
-            return [IsAdminOrSupervisor()]
-        return [permissions.IsAuthenticated()]
-
-    def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
-=======
 from rest_framework import status, viewsets
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes, parser_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.utils import timezone
 from datetime import datetime
 
-from .models import Task, TaskProof, TaskSLA
-from .serializers import TaskSerializer, TaskProofSerializer, TaskProofUploadSerializer, TaskSLASerializer
+from .models import Task, TaskProof, TaskSLA, VerificationResult, CleaningMetrics
+from .serializers import TaskSerializer, TaskProofSerializer, TaskProofUploadSerializer, TaskSLASerializer, VerificationResultSerializer
 
 
 class TaskViewSet(viewsets.ModelViewSet):
@@ -221,12 +183,17 @@ class TaskSLAViewSet(viewsets.ViewSet):
             'compliance_percentage': f"{compliance_percentage:.1f}%"
         }, status=status.HTTP_200_OK)
 
-            return load_detector(model_path)
+from django.conf import settings
+
+def get_detector():
+    """Get the ViT cleaning detector instance"""
+    try:
+        from .ai_models.cleaning_detector import CleaningDetector
+        model_path = getattr(settings, 'CLEANING_MODEL_PATH', 'models/vit-base-patch16-224')
+        return CleaningDetector(model_path)
     except Exception as e:
         print(f"Error loading detector: {e}")
-    
-    return None
-
+        return None
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -255,7 +222,7 @@ def upload_before_image(request):
             )
         
         # Create or update cleaning task
-        cleaning_task, created = CleaningTask.objects.get_or_create(
+        task, created = Task.objects.get_or_create(
             task_id=task_id,
             defaults={
                 'worker': request.user,
@@ -265,22 +232,22 @@ def upload_before_image(request):
             }
         )
         
-        if not created and cleaning_task.worker != request.user:
+        if not created and task.worker != request.user:
             return Response(
                 {'error': 'You do not have permission to modify this task'},
                 status=status.HTTP_403_FORBIDDEN
             )
         
         # Update task with image
-        cleaning_task.before_image = image_file
-        cleaning_task.status = 'in_progress'
-        cleaning_task.save()
+        task.before_image = image_file
+        task.status = 'in_progress'
+        task.save()
         
         return Response({
             'success': True,
             'message': 'Before image uploaded successfully',
             'task_id': task_id,
-            'task': CleaningTaskSerializer(cleaning_task).data
+            'task': TaskSerializer(task).data
         }, status=status.HTTP_201_CREATED)
     
     except Exception as e:
@@ -316,29 +283,29 @@ def upload_after_image_and_verify(request):
         
         # Get cleaning task
         try:
-            cleaning_task = CleaningTask.objects.get(task_id=task_id)
-        except CleaningTask.DoesNotExist:
+            task = Task.objects.get(task_id=task_id)
+        except Task.DoesNotExist:
             return Response(
                 {'error': f'Task {task_id} not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
         
-        if cleaning_task.worker != request.user:
+        if task.worker != request.user:
             return Response(
                 {'error': 'You do not have permission to modify this task'},
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        if not cleaning_task.before_image:
+        if not task.before_image:
             return Response(
                 {'error': 'No before image for this task. Please upload before image first.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
         # Update task with after image
-        cleaning_task.after_image = image_file
-        cleaning_task.status = 'submitted'
-        cleaning_task.save()
+        task.after_image = image_file
+        task.status = 'submitted'
+        task.save()
         
         # Run AI verification if detector is available
         detector = get_detector()
@@ -359,8 +326,8 @@ def upload_after_image_and_verify(request):
         if detector:
             try:
                 # Get image paths
-                before_path = cleaning_task.before_image.path
-                after_path = cleaning_task.after_image.path
+                before_path = task.before_image.path
+                after_path = task.after_image.path
                 
                 # Run verification
                 comparison = detector.compare_before_after(
@@ -386,11 +353,11 @@ def upload_after_image_and_verify(request):
                     
                     # Update task status
                     if comparison['cleanup_successful']:
-                        cleaning_task.status = 'verified_clean'
+                        task.status = 'verified_clean'
                     else:
-                        cleaning_task.status = 'verification_failed'
-                    cleaning_task.completion_date = timezone.now()
-                    cleaning_task.save()
+                        task.status = 'verification_failed'
+                    task.completion_date = timezone.now()
+                    task.save()
                 else:
                     verification_data['error_message'] = comparison.get('error', 'Unknown error')
             
@@ -399,7 +366,7 @@ def upload_after_image_and_verify(request):
         
         # Create verification record
         verification_result, created = VerificationResult.objects.get_or_create(
-            cleaning_task=cleaning_task,
+            task=task,
             defaults=verification_data
         )
         
@@ -420,7 +387,7 @@ def upload_after_image_and_verify(request):
         return Response({
             'success': True,
             'message': 'After image uploaded and verification complete',
-            'task': CleaningTaskSerializer(cleaning_task).data,
+            'task': TaskSerializer(task).data,
             'verification': VerificationResultSerializer(verification_result).data
         }, status=status.HTTP_200_OK)
     
@@ -442,7 +409,7 @@ def get_task_details(request, task_id):
     GET /api/operations/task/{task_id}/
     """
     try:
-        task = CleaningTask.objects.get(task_id=task_id)
+        task = Task.objects.get(task_id=task_id)
         
         if task.worker != request.user:
             return Response(
@@ -454,11 +421,11 @@ def get_task_details(request, task_id):
         
         return Response({
             'success': True,
-            'task': CleaningTaskSerializer(task).data,
+            'task': TaskSerializer(task).data,
             'verification': VerificationResultSerializer(verification).data if verification else None
         }, status=status.HTTP_200_OK)
     
-    except CleaningTask.DoesNotExist:
+    except Task.DoesNotExist:
         return Response(
             {'error': f'Task {task_id} not found'},
             status=status.HTTP_404_NOT_FOUND
@@ -479,11 +446,11 @@ def get_worker_tasks(request):
     GET /api/operations/my-tasks/
     """
     try:
-        tasks = CleaningTask.objects.filter(worker=request.user).order_by('-assigned_date')
+        tasks = Task.objects.filter(worker=request.user).order_by('-assigned_date')
         
         tasks_data = []
         for task in tasks:
-            task_data = CleaningTaskSerializer(task).data
+            task_data = TaskSerializer(task).data
             verification = getattr(task, 'verification', None)
             if verification:
                 task_data['verification'] = VerificationResultSerializer(verification).data
@@ -532,4 +499,3 @@ def get_worker_metrics(request):
             {'error': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
->>>>>>> copilot/vscode-mn4q5as7-92i0

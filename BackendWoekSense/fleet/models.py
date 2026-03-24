@@ -18,7 +18,7 @@ class Vehicle(models.Model):
     
     vehicle_id = models.CharField(max_length=100, unique=True)
     vehicle_type = models.CharField(max_length=50, choices=VEHICLE_TYPE_CHOICES)
-    assigned_driver = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='vehicles')
+    assigned_driver = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='vehicles')
     current_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='IDLE')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -66,33 +66,6 @@ class RouteDeviation(models.Model):
     def __str__(self):
         return f"{self.vehicle.vehicle_id} - Skipped {self.skipped_stop_id}"
 
-<<<<<<< HEAD
-
-class Vehicle(models.Model):
-    STATUS_CHOICES = [
-        ('active', 'Active'),
-        ('idle', 'Idle'),
-        ('maintenance', 'Maintenance'),
-        ('inactive', 'Inactive'),
-    ]
-
-    registration = models.CharField(max_length=20, unique=True)
-    make = models.CharField(max_length=100)
-    model = models.CharField(max_length=100)
-    year = models.PositiveSmallIntegerField(null=True, blank=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='idle')
-    assigned_driver = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='vehicles',
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"{self.registration} – {self.make} {self.model}"
-
 
 class VehicleLocation(models.Model):
     vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE, related_name='locations')
@@ -106,6 +79,7 @@ class VehicleLocation(models.Model):
         ordering = ['-timestamp']
 
     def __str__(self):
-        return f"{self.vehicle.registration} @ {self.timestamp}"
-=======
->>>>>>> copilot/vscode-mn4q5as7-92i0
+        return f"{self.vehicle.vehicle_id} @ {self.timestamp}"
+
+
+

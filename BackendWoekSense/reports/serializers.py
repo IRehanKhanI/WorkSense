@@ -1,9 +1,4 @@
 from rest_framework import serializers
-<<<<<<< HEAD
-from .models import CitizenComplaint, HeatmapDataPoint
-
-# Placeholder - serializers to be extended
-=======
 from .models import Report
 
 
@@ -18,4 +13,3 @@ class ReportSerializer(serializers.ModelSerializer):
             'parameters', 'file_url', 'generated_at',
         ]
         read_only_fields = ['id', 'generated_at', 'generated_by']
->>>>>>> dc4d18bafcd4ef40f049d51a2ce3d7f6304db71e
