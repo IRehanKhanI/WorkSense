@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Task, TaskProof, TaskSLA
+from .models import Task, TaskProof, TaskSLA, CleaningTask, VerificationResult
 
 
 class TaskProofSerializer(serializers.ModelSerializer):
@@ -67,4 +67,54 @@ class TaskProofUploadSerializer(serializers.Serializer):
         except Task.DoesNotExist:
             raise serializers.ValidationError("Task not found.")
         return value
+
+
+class VerificationResultSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VerificationResult
+        fields = [
+            'id',
+            'before_prediction',
+            'before_confidence',
+            'before_class_scores',
+            'after_prediction',
+            'after_confidence',
+            'after_class_scores',
+            'cleanup_successful',
+            'cleanup_confidence',
+            'verification_status',
+            'recommendation_message',
+            'model_version',
+            'confidence_threshold',
+            'verified_at',
+            'error_message',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class CleaningTaskSerializer(serializers.ModelSerializer):
+    worker_username = serializers.CharField(source='worker.username', read_only=True)
+    verification = VerificationResultSerializer(read_only=True)
+
+    class Meta:
+        model = CleaningTask
+        fields = [
+            'id',
+            'task_id',
+            'worker',
+            'worker_username',
+            'location',
+            'description',
+            'status',
+            'before_image',
+            'after_image',
+            'assigned_date',
+            'completion_date',
+            'verification',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['id', 'worker', 'created_at', 'updated_at']
 

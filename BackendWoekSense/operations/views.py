@@ -1,13 +1,17 @@
 from rest_framework import status, viewsets
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, parser_classes, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.utils import timezone
 from datetime import datetime
+import os
 
-from .models import Task, TaskProof, TaskSLA
-from .serializers import TaskSerializer, TaskProofSerializer, TaskProofUploadSerializer, TaskSLASerializer
+from .models import Task, TaskProof, TaskSLA, CleaningTask, VerificationResult, CleaningMetrics
+from .serializers import (
+    TaskSerializer, TaskProofSerializer, TaskProofUploadSerializer, TaskSLASerializer,
+    CleaningTaskSerializer, VerificationResultSerializer,
+)
 
 
 class TaskViewSet(viewsets.ModelViewSet):
@@ -175,7 +179,7 @@ class TaskSLAViewSet(viewsets.ViewSet):
         missed = slas.filter(sla_met=False).count()
         
         compliance_percentage = (met / total * 100) if total > 0 else 0
-        
+
         return Response({
             'total_tasks_with_sla': total,
             'sla_met': met,
@@ -183,10 +187,22 @@ class TaskSLAViewSet(viewsets.ViewSet):
             'compliance_percentage': f"{compliance_percentage:.1f}%"
         }, status=status.HTTP_200_OK)
 
+
+def get_detector():
+    """
+    Try to load the AI cleaning detector model.
+    Returns a CleaningDetector instance or None if the model is unavailable.
+    """
+    try:
+        from ml_models.models.inference import load_detector
+        model_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "ml_models", "models", "vit_cleaning_detector", "best_model"
+        )
+        if os.path.isdir(model_path):
             return load_detector(model_path)
     except Exception as e:
         print(f"Error loading detector: {e}")
-    
     return None
 
 

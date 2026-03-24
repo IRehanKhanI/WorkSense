@@ -1,6 +1,6 @@
-import { View, Text, ScrollView, TouchableOpacity, Image, Dimensions } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
-import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
+import { FontAwesome5 } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 
@@ -8,8 +8,8 @@ const COLORS = {
     inkBlack: '#011627',
     seaweed: '#419d78',
     mustard: '#fed766',
+    alertRed: '#e84855',
     lightGlass: 'rgba(255, 255, 255, 0.1)',
-    darkGlass: 'rgba(1, 22, 39, 0.5)',
 };
 
 export default function WorkerDashboard() {
@@ -22,15 +22,15 @@ export default function WorkerDashboard() {
             icon: 'clock',
             color: COLORS.seaweed,
             route: '/(worker)/attendance',
-            description: 'Check in/out'
+            description: 'Check in/out',
         },
         {
             id: 2,
-            title: 'Camera',
+            title: 'Work Camera',
             icon: 'camera',
             color: COLORS.mustard,
             route: '/(worker)/camera',
-            description: 'Live camera'
+            description: 'Before/After proof',
         },
         {
             id: 3,
@@ -38,24 +38,7 @@ export default function WorkerDashboard() {
             icon: 'map-marker',
             color: COLORS.seaweed,
             route: '/(worker)/map',
-            description: 'Track location'
-        },
-    ];
-
-    const wellnessCards = [
-        {
-            id: 1,
-            title: 'Wellness',
-            subtitle: 'AI Health Companion',
-            icon: '🧠',
-            description: 'Mental wellness support',
-        },
-        {
-            id: 2,
-            title: 'Stress Level',
-            subtitle: 'Moderate',
-            icon: '📊',
-            description: 'Risk 35%',
+            description: 'Track location',
         },
     ];
 
@@ -65,13 +48,10 @@ export default function WorkerDashboard() {
 
     return (
         <ScrollView
-            style={{
-                flex: 1,
-                backgroundColor: COLORS.inkBlack,
-            }}
+            style={{ flex: 1, backgroundColor: COLORS.inkBlack }}
             contentContainerStyle={{ paddingBottom: 40 }}
         >
-            {/* Header with Gradient Background */}
+            {/* Header */}
             <View
                 style={{
                     paddingHorizontal: 20,
@@ -88,7 +68,7 @@ export default function WorkerDashboard() {
                 </Text>
             </View>
 
-            {/* Wellness Overview Card - Glass Morphism */}
+            {/* Status Card */}
             <View style={{ paddingHorizontal: 20, marginBottom: 24 }}>
                 <View
                     style={{
@@ -97,7 +77,6 @@ export default function WorkerDashboard() {
                         padding: 24,
                         borderWidth: 1,
                         borderColor: 'rgba(255,255,255,0.2)',
-                        backdropFilter: 'blur(10px)',
                         overflow: 'hidden',
                     }}
                 >
@@ -129,6 +108,43 @@ export default function WorkerDashboard() {
                         You're all set for today. Keep up the great work!
                     </Text>
                 </View>
+            </View>
+
+            {/* Work Verification Banner */}
+            <View style={{ paddingHorizontal: 20, marginBottom: 24 }}>
+                <TouchableOpacity
+                    onPress={() => handleNavigate('/(worker)/camera')}
+                    style={{
+                        backgroundColor: COLORS.mustard,
+                        borderRadius: 20,
+                        padding: 20,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                    }}
+                >
+                    <View
+                        style={{
+                            width: 52,
+                            height: 52,
+                            borderRadius: 26,
+                            backgroundColor: 'rgba(1,22,39,0.15)',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            marginRight: 16,
+                        }}
+                    >
+                        <FontAwesome5 name="camera" size={24} color={COLORS.inkBlack} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 16, fontWeight: '700', color: COLORS.inkBlack, marginBottom: 4 }}>
+                            Work Verification
+                        </Text>
+                        <Text style={{ fontSize: 13, color: 'rgba(1,22,39,0.7)' }}>
+                            Capture before & after photos — AI checks task completion
+                        </Text>
+                    </View>
+                    <FontAwesome5 name="chevron-right" size={16} color={COLORS.inkBlack} />
+                </TouchableOpacity>
             </View>
 
             {/* Quick Actions Section */}
@@ -163,11 +179,7 @@ export default function WorkerDashboard() {
                                     marginBottom: 12,
                                 }}
                             >
-                                <FontAwesome5
-                                    name={action.icon}
-                                    size={24}
-                                    color={action.color}
-                                />
+                                <FontAwesome5 name={action.icon} size={24} color={action.color} />
                             </View>
                             <Text style={{ fontSize: 14, fontWeight: '600', color: '#fff', textAlign: 'center' }}>
                                 {action.title}
@@ -180,44 +192,7 @@ export default function WorkerDashboard() {
                 </View>
             </View>
 
-            {/* Wellness Cards */}
-            <View style={{ paddingHorizontal: 20, marginBottom: 32 }}>
-                <Text style={{ fontSize: 18, fontWeight: '700', color: '#fff', marginBottom: 16 }}>
-                    Wellness Hub
-                </Text>
-                {wellnessCards.map((card) => (
-                    <View
-                        key={card.id}
-                        style={{
-                            backgroundColor: COLORS.lightGlass,
-                            borderRadius: 20,
-                            padding: 20,
-                            marginBottom: 12,
-                            borderWidth: 1,
-                            borderColor: 'rgba(255,255,255,0.2)',
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                        }}
-                    >
-                        <Text style={{ fontSize: 40, marginRight: 16 }}>
-                            {card.icon}
-                        </Text>
-                        <View style={{ flex: 1 }}>
-                            <Text style={{ fontSize: 16, fontWeight: '600', color: '#fff', marginBottom: 4 }}>
-                                {card.title}
-                            </Text>
-                            <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>
-                                {card.subtitle}
-                            </Text>
-                            <Text style={{ fontSize: 12, color: COLORS.mustard, marginTop: 4 }}>
-                                {card.description}
-                            </Text>
-                        </View>
-                    </View>
-                ))}
-            </View>
-
-            {/* Stats Section */}
+            {/* Today's Stats */}
             <View style={{ paddingHorizontal: 20, marginBottom: 32 }}>
                 <Text style={{ fontSize: 18, fontWeight: '700', color: '#fff', marginBottom: 16 }}>
                     Today's Stats
@@ -256,7 +231,7 @@ export default function WorkerDashboard() {
                             98%
                         </Text>
                         <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', textAlign: 'center' }}>
-                            Productivity
+                            Task Completion
                         </Text>
                     </View>
                 </View>
@@ -281,3 +256,4 @@ export default function WorkerDashboard() {
         </ScrollView>
     );
 }
+

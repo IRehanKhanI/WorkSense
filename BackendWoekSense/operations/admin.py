@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Task, TaskProof, TaskSLA
+from .models import Task, TaskProof, TaskSLA, CleaningTask, VerificationResult, CleaningMetrics
 
 
 @admin.register(Task)
@@ -47,13 +47,36 @@ class TaskSLAAdmin(admin.ModelAdmin):
         ('Timestamps', {'fields': ('created_at', 'updated_at'), 'classes': ('collapse',)}),
     )
 
-        ('Results', {
-            'fields': ('recommendation_message', 'error_message')
-        }),
-        ('Timestamps', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
+
+@admin.register(CleaningTask)
+class CleaningTaskAdmin(admin.ModelAdmin):
+    list_display = ['task_id', 'worker', 'location', 'status', 'assigned_date']
+    list_filter = ['status', 'assigned_date']
+    search_fields = ['task_id', 'worker__username', 'location']
+    readonly_fields = ['created_at', 'updated_at']
+
+    fieldsets = (
+        ('Task Details', {'fields': ('task_id', 'worker', 'location', 'description')}),
+        ('Images', {'fields': ('before_image', 'after_image')}),
+        ('Status', {'fields': ('status', 'assigned_date', 'completion_date')}),
+        ('Timestamps', {'fields': ('created_at', 'updated_at'), 'classes': ('collapse',)}),
+    )
+
+
+@admin.register(VerificationResult)
+class VerificationResultAdmin(admin.ModelAdmin):
+    list_display = ['cleaning_task', 'verification_status', 'cleanup_successful', 'cleanup_confidence', 'verified_at']
+    list_filter = ['verification_status', 'cleanup_successful']
+    search_fields = ['cleaning_task__task_id']
+    readonly_fields = ['created_at', 'updated_at', 'verified_at']
+
+    fieldsets = (
+        ('Task', {'fields': ('cleaning_task',)}),
+        ('Before Analysis', {'fields': ('before_prediction', 'before_confidence', 'before_class_scores')}),
+        ('After Analysis', {'fields': ('after_prediction', 'after_confidence', 'after_class_scores')}),
+        ('Result', {'fields': ('cleanup_successful', 'cleanup_confidence', 'verification_status')}),
+        ('Details', {'fields': ('recommendation_message', 'error_message', 'model_version', 'confidence_threshold')}),
+        ('Timestamps', {'fields': ('verified_at', 'created_at', 'updated_at'), 'classes': ('collapse',)}),
     )
 
 
