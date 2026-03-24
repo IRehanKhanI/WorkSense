@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { useState, useRef } from 'react';
 import { View, Text, StyleSheet, Alert } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -108,3 +109,14 @@ const styles = StyleSheet.create({
         fontSize: FONT_SIZES.md,
     },
 });
+=======
+import { View, Text } from 'react-native';
+
+export default function Camera() {
+    return (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <Text>Camera</Text>
+        </View>
+    );
+}
+>>>>>>> copilot/vscode-mn4q5as7-92i0

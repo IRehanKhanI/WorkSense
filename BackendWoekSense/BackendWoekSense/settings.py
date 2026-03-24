@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+<<<<<<< HEAD
     # Third-party
     'rest_framework',
     'rest_framework_simplejwt',
@@ -48,6 +49,19 @@ INSTALLED_APPS = [
     'operations',
     'fleet',
     'iot_assets',
+=======
+    
+    # Third party apps
+    'rest_framework',
+    'corsheaders',
+    
+    # Local apps
+    'accounts',
+    'attendance',
+    'fleet',
+    'iot_assets',
+    'operations',
+>>>>>>> copilot/vscode-mn4q5as7-92i0
     'reports',
 ]
 
@@ -134,6 +148,7 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+<<<<<<< HEAD
 # Custom user model
 AUTH_USER_MODEL = 'accounts.User'
 
@@ -145,10 +160,69 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
+=======
+
+# Media files (uploaded files)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+
+# CORS Configuration
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:8000",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:8000",
+    "http://192.168.1.100:8081",  # Expo development
+]
+
+# REST Framework Configuration
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 20,
+    'DEFAULT_FILTER_BACKENDS': [
+        'rest_framework.filters.SearchFilter',
+        'rest_framework.filters.OrderingFilter',
+    ],
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle'
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '100/hour',
+        'user': '1000/hour'
+    }
+}
+
+CORS_ALLOW_CREDENTIALS = True
+
+
+# Rest Framework Configuration
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_PARSER_CLASSES': [
+        'rest_framework.parsers.JSONParser',
+        'rest_framework.parsers.MultiPartParser',
+        'rest_framework.parsers.FormParser',
+    ],
+>>>>>>> copilot/vscode-mn4q5as7-92i0
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
 }
 
+<<<<<<< HEAD
 # JWT settings
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=8),
@@ -165,3 +239,9 @@ CORS_ALLOW_ALL_ORIGINS = DEBUG  # True in dev; set CORS_ALLOWED_ORIGINS list in 
 GEOFENCE_LAT = 33.6844
 GEOFENCE_LNG = 73.0479
 GEOFENCE_RADIUS_M = 200
+=======
+
+# ML Models Configuration
+ML_MODELS_DIR = BASE_DIR / 'ml_models'
+VIT_MODEL_PATH = ML_MODELS_DIR / 'models' / 'vit_cleaning_detector' / 'best_model'
+>>>>>>> copilot/vscode-mn4q5as7-92i0

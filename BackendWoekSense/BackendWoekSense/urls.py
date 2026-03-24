@@ -1,7 +1,7 @@
 """
 URL configuration for BackendWoekSense project.
 
-The `urlpatterns` list routes URLs to views. For more information please see:
+The `urlpatterns` list routes URLs to view. For more information please see:
     https://docs.djangoproject.com/en/5.2/topics/http/urls/
 Examples:
 Function views
@@ -16,6 +16,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+<<<<<<< HEAD
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -25,4 +26,19 @@ urlpatterns = [
     path('api/', include('fleet.urls')),
     path('api/', include('iot_assets.urls')),
     path('api/', include('reports.urls')),
+=======
+from django.conf import settings
+from django.conf.urls.static import static
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    
+    # API v1 routes
+    path('api/v1/', include('BackendWoekSense.api_urls')),
+    path('api-auth/', include('rest_framework.urls')),
+>>>>>>> copilot/vscode-mn4q5as7-92i0
 ]
+
+# Serve media files in development
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Alert, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -181,3 +182,14 @@ const styles = StyleSheet.create({
         marginBottom: SPACING.md,
     },
 });
+=======
+import { View, Text } from 'react-native';
+
+export default function Attendance() {
+    return (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <Text>Attendance</Text>
+        </View>
+    );
+}
+>>>>>>> copilot/vscode-mn4q5as7-92i0
