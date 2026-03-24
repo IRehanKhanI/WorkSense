@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Smart Bin OS | Full Hardware Restore</title>
+    <style>
+        :root {
+            --ink-black: #011627;
+            --seaweed: #419d78;
+            --mustard: #fed766;
+            --danger: #e74c3c;
+            --safety-orange: #ff6700;
+        }
+
+        body { margin: 0; background: var(--ink-black); font-family: 'Courier New', Courier, monospace; overflow: hidden; }
+        #canvas { width: 100vw; height: 100vh; display: block; }
+        
+        .ui-panel {
+            position: absolute;
+            left: 20px; top: 20px;
+            width: 300px;
+            background: rgba(1, 22, 39, 0.95);
+            border: 2px solid var(--seaweed);
+            border-radius: 10px;
+            padding: 20px;
+            color: white;
+            z-index: 10;
+        }
+        .ui-panel.full { border-color: var(--danger); box-shadow: 0 0 15px var(--danger); }
+
+        h1 { color: var(--mustard); font-size: 18px; margin: 0; }
+        .hint { color: var(--seaweed); font-size: 10px; margin-top: 5px; }
+        
+        .sensor-block { margin-top: 15px; border-top: 1px solid rgba(65, 157, 120, 0.2); padding-top: 10px; }
+        .label { font-size: 11px; color: var(--seaweed); text-transform: uppercase; }
+        .raw-data { font-size: 28px; color: #ffffff; font-weight: bold; }
+        .unit { font-size: 14px; color: var(--mustard); }
+
+        #alertOverlay {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(231, 76, 60, 0.9);
+            color: white;
+            padding: 30px 60px;
+            border-radius: 10px;
+            font-size: 24px;
+            font-weight: bold;
+            display: none;
+            z-index: 100;
+            text-align: center;
+            border: 3px solid white;
+        }
+
+        .controls {
+            position: absolute;
+            bottom: 40px;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            z-index: 10;
+        }
+
+        button {
+            padding: 15px 35px;
+            background: var(--ink-black);
+            border: 2px solid var(--seaweed);
+            color: var(--seaweed);
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        button:hover:not(:disabled) { background: var(--seaweed); color: var(--ink-black); }
+        button:disabled { opacity: 0.3; cursor: not-allowed; }
+        .btn-reset { border-color: var(--danger); color: var(--danger); margin-left: 15px; }
+    </style>
+</head>
+<body>
+
+    <canvas id="canvas"></canvas>
+    <div id="alertOverlay">⚠️ BIN FULL ⚠️<br><small>CAPACITY EXCEEDED</small></div>
+
+    <div class="ui-panel" id="mainUI">
+        <h1>BIN_OS_V18.0</h1>
+        <div class="hint" id="statusHint">HARDWARE INITIALIZED</div>
+        <div class="sensor-block">
+            <div class="label">Sonar Range</div>
+            <div class="raw-data" id="distData">600.0<span class="unit">cm</span></div>
+        </div>
+        <div class="sensor-block">
+            <div class="label">Load Cell Mass</div>
+            <div class="raw-data" id="weightData">0.00<span class="unit">kg</span></div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button id="dropBtn" onclick="spawnWaste()">Dispose Waste</button>
+        <button class="btn-reset" onclick="resetBin()">Reset</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+        let items = [];
+        let distance = 600.0;
+        let totalWeight = 0;
+        let isFull = false;
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x011627);
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(22, 12, 30);
+
+        const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('canvas'), antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+        // Lighting
+        const sun = new THREE.DirectionalLight(0xffffff, 2.0);
+        sun.position.set(20, 40, 20);
+        scene.add(sun);
+        scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+
+        // Materials
+        const steel = new THREE.MeshStandardMaterial({ color: 0x7f8c8d, metalness: 0.9, roughness: 0.3 });
+        const darkSteel = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.8 });
+
+        const binGroup = new THREE.Group();
+
+        // 1. BIN BOTTOM (Solid Plate)
+        const innerFloor = new THREE.Mesh(new THREE.CylinderGeometry(4.5, 4.5, 0.5, 32), steel);
+        innerFloor.position.y = -6;
+        binGroup.add(innerFloor);
+
+        // 2. LOAD CELL HARDWARE
+        const loadCellGroup = new THREE.Group();
+        const topPlate = new THREE.Mesh(new THREE.BoxGeometry(10, 0.5, 10), steel);
+        topPlate.position.y = -6.5;
+        loadCellGroup.add(topPlate);
+
+        const transducer = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 1.5, 32), new THREE.MeshStandardMaterial({color: 0xffffff, metalness: 1}));
+        transducer.position.y = -7.5;
+        loadCellGroup.add(transducer);
+
+        const cablePath = new THREE.CatmullRomCurve3([
+            new THREE.Vector3(2, -7.5, 0),
+            new THREE.Vector3(10, -7.5, 5),
+            new THREE.Vector3(15, -9, 10)
+        ]);
+        const cable = new THREE.Mesh(new THREE.TubeGeometry(cablePath, 20, 0.2, 8, false), new THREE.MeshStandardMaterial({color: 0xff6700}));
+        loadCellGroup.add(cable);
+
+        const baseFoundation = new THREE.Mesh(new THREE.BoxGeometry(12, 1, 12), darkSteel);
+        baseFoundation.position.y = -8.7;
+        loadCellGroup.add(baseFoundation);
+        binGroup.add(loadCellGroup);
+
+        // 3. BIN CAGE (Bars)
+        for(let i=0; i < 18; i++){
+            const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 12, 8), steel);
+            const angle = (i / 18) * Math.PI * 2;
+            bar.position.set(Math.cos(angle) * 4.5, 0, Math.sin(angle) * 4.5);
+            binGroup.add(bar);
+        }
+
+        // 4. TOP RIM (The Fix)
+        const rimGeom = new THREE.TorusGeometry(4.5, 0.2, 16, 100);
+        const rim = new THREE.Mesh(rimGeom, steel);
+        rim.rotation.x = Math.PI / 2;
+        rim.position.y = 6;
+        binGroup.add(rim);
+
+        // Ultrasonic Sensor (Top)
+        const head = new THREE.Group();
+        head.add(new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.7, 0.3), new THREE.MeshStandardMaterial({color: 0xbdc3c7})));
+        head.position.set(0, 5.8, 4.3);
+        head.rotation.set(Math.PI/4, Math.PI, 0);
+        
+        const ray = new THREE.Mesh(new THREE.ConeGeometry(3, 12, 32, 1, true), new THREE.MeshBasicMaterial({ color: 0x00d2ff, transparent: true, opacity: 0.2 }));
+        ray.position.set(0, -6, 1);
+        head.add(ray);
+        binGroup.add(head);
+
+        scene.add(binGroup);
+
+        // 5. THE FLOOR (Ground Plane)
+        const floorGeometry = new THREE.PlaneGeometry(200, 200);
+        const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.8 });
+        const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+        floor.rotation.x = -Math.PI / 2;
+        floor.position.y = -9.2; 
+        scene.add(floor);
+
+        // Physics Logic
+        function spawnWaste() {
+            if (isFull) return;
+            const waste = new THREE.Mesh(new THREE.IcosahedronGeometry(1.2, 0), new THREE.MeshStandardMaterial({color: Math.random() * 0xffffff}));
+            waste.position.set((Math.random()-0.5)*4, 25, (Math.random()-0.5)*4);
+            const targetY = -5.3 + (items.length * 0.5);
+            
+            items.push({ mesh: waste, target: targetY, vel: 0, bounced: false });
+            scene.add(waste);
+
+            totalWeight += 40;
+            distance -= 25;
+            
+            if (distance <= 50) {
+                isFull = true;
+                document.getElementById('alertOverlay').style.display = 'block';
+                document.getElementById('mainUI').classList.add('full');
+                document.getElementById('dropBtn').disabled = true;
+                ray.material.color.setHex(0xff0000);
+            }
+            updateUI();
+        }
+
+        function updateUI() {
+            document.getElementById('distData').innerText = Math.max(50, distance).toFixed(1);
+            document.getElementById('weightData').innerText = totalWeight.toFixed(2);
+        }
+
+        function resetBin() {
+            items.forEach(i => scene.remove(i.mesh));
+            items = []; distance = 600; totalWeight = 0; isFull = false;
+            document.getElementById('alertOverlay').style.display = 'none';
+            document.getElementById('mainUI').classList.remove('full');
+            document.getElementById('dropBtn').disabled = false;
+            ray.material.color.setHex(0x00d2ff);
+            updateUI();
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            items.forEach(i => {
+                if (i.mesh.position.y > i.target) {
+                    i.vel -= 0.015;
+                    i.mesh.position.y += i.vel;
+                    i.mesh.rotation.x += 0.05;
+                } else if (!i.bounced) {
+                    i.vel = Math.abs(i.vel) * 0.2;
+                    i.mesh.position.y += i.vel;
+                    if(i.vel < 0.01) i.bounced = true;
+                }
+            });
+            renderer.render(scene, camera);
+        }
+        animate();
+    </script>
+</body>
+</html>
