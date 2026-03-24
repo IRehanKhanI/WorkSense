@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.so
+.Python
+env/
+venv/
+.env
+.venv/
+
+# Django
+*.sqlite3
+/BackendWoekSense/media/
+/BackendWoekSense/staticfiles/
+
+# Node / React Native / Expo
+node_modules/
+.expo/
+dist/
+.metro-cache/
+*.log
+npm-debug.log*
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
