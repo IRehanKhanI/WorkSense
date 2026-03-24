@@ -1,0 +1,12 @@
+# Django
+BackendWoekSense/db.sqlite3
+BackendWoekSense/__pycache__/
+BackendWoekSense/**/__pycache__/
+BackendWoekSense/**/*.pyc
+*.pyc
+*.pyo
+
+# React Native / Expo  (node_modules already covered by WorkSense/.gitignore)
+WorkSense/node_modules/
+WorkSense/.expo/
+WorkSense/dist/

@@ -1,3 +1,10 @@
 from django.contrib import admin
+from .models import Report
 
-# Register your models here.
+
+@admin.register(Report)
+class ReportAdmin(admin.ModelAdmin):
+    list_display = ['title', 'report_type', 'format', 'generated_by', 'generated_at']
+    list_filter = ['report_type', 'format']
+    search_fields = ['title']
+    ordering = ['-generated_at']
