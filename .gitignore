@@ -10,3 +10,5 @@ BackendWoekSense/**/*.pyc
 WorkSense/node_modules/
 WorkSense/.expo/
 WorkSense/dist/
+
+model.safetensors

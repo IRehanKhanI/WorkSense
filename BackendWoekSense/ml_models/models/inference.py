@@ -29,8 +29,14 @@ class CleaningDetector:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         
         # Load processor and model
-        self.processor = AutoImageProcessor.from_pretrained(str(self.model_path))
-        self.model = AutoModelForImageClassification.from_pretrained(str(self.model_path))
+        try:
+            self.processor = AutoImageProcessor.from_pretrained(str(self.model_path))
+            self.model = AutoModelForImageClassification.from_pretrained(str(self.model_path))
+        except Exception:
+            print(f"Warning: Model not found at {self.model_path}. Loading default base model.")
+            self.processor = AutoImageProcessor.from_pretrained("google/vit-base-patch16-224")
+            self.model = AutoModelForImageClassification.from_pretrained("google/vit-base-patch16-224")
+            
         self.model.to(self.device)
         self.model.eval()
         

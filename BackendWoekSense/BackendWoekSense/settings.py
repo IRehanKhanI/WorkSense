@@ -32,6 +32,7 @@ ALLOWED_HOSTS = ['*']  # Restrict to specific hosts in production
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -40,6 +41,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     
     # Third party apps
+    'channels',
     'rest_framework',
     'rest_framework.authtoken',
     'corsheaders',
@@ -82,6 +84,13 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'BackendWoekSense.wsgi.application'
+ASGI_APPLICATION = 'BackendWoekSense.asgi.application'
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    },
+}
 
 
 # Database
@@ -156,9 +165,11 @@ REST_FRAMEWORK = {
     ],
 }
 
+import os
+
 # Media files (uploaded files)
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # CORS Configuration
 CORS_ALLOWED_ORIGINS = [

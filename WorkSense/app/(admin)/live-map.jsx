@@ -1,23 +1,139 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, Alert, FlatList, TouchableOpacity } from 'react-native';
+import MapView, { Marker, Heatmap } from 'react-native-maps';
 import { fetchVehicles } from '../../src/services/locationApi';
 import MapMarker from '../../src/components/MapMarker';
 import { COLORS, SPACING, FONT_SIZES, RADIUS } from '../../src/constants/theme';
 
+const MOCK_GARBAGE_LOCATIONS = [
+    { latitude: 15.5927, longitude: 73.8105, weight: 1 },
+    { latitude: 15.5937, longitude: 73.8115, weight: 2 },
+    { latitude: 15.5947, longitude: 73.8105, weight: 5 },
+    { latitude: 15.5957, longitude: 73.8095, weight: 3 },
+    { latitude: 15.5937, longitude: 73.8125, weight: 4 },
+];
+
+const TRUCK_ROUTE = [
+    { latitude: 15.5910, longitude: 73.8100 },
+    { latitude: 15.5920, longitude: 73.8110 },
+    { latitude: 15.5930, longitude: 73.8120 },
+    { latitude: 15.5945, longitude: 73.8105 },
+    { latitude: 15.5960, longitude: 73.8090 },
+    { latitude: 15.5950, longitude: 73.8080 },
+];
+
 /**
  * Live map screen showing vehicles and their latest GPS positions.
- * Uses a simple list view since react-native-maps requires native build;
- * swap the <VehicleList> for a <MapView> when running a development build.
+ * Uses react-native-maps to show a heatmap of garbage locations and live truck markers.
  */
 export default function LiveMapScreen() {
     const [vehicles, setVehicles] = useState([]);
     const [selected, setSelected] = useState(null);
     const [loading, setLoading] = useState(true);
+    const wsRef = useRef(null);
 
     useEffect(() => {
         loadVehicles();
-        const interval = setInterval(loadVehicles, 15000);
-        return () => clearInterval(interval);
+
+        let routeIndex = 0;
+        const simulationInterval = setInterval(() => {
+            setVehicles(prev => {
+                const updated = [...prev];
+                const simLoc = TRUCK_ROUTE[routeIndex % TRUCK_ROUTE.length];
+                
+                if (updated.length === 0) {
+                    updated.push({
+                        id: 'dummy-1',
+                        registration: 'DUMP-99',
+                        type: 'vehicle',
+                        make: 'Dummy',
+                        model: 'Garbage Truck',
+                        latest_location: {
+                            latitude: simLoc.latitude,
+                            longitude: simLoc.longitude,
+                            speed_kmh: 15.5
+                        },
+                        status: 'active'
+                    });
+                } else {
+                    const dummyIndex = updated.findIndex(v => v.id === 'dummy-1');
+                    if (dummyIndex !== -1) {
+                        updated[dummyIndex] = {
+                            ...updated[dummyIndex],
+                            latest_location: {
+                                latitude: simLoc.latitude,
+                                longitude: simLoc.longitude,
+                                speed_kmh: 15.5
+                            },
+                            status: 'active'
+                        };
+                    } else {
+                        // Simulate movement for the first vehicle if no dummy exists
+                        updated[0] = {
+                            ...updated[0],
+                            latest_location: {
+                                latitude: simLoc.latitude,
+                                longitude: simLoc.longitude,
+                                speed_kmh: 15.5
+                            },
+                            status: 'active'
+                        };
+                    }
+                }
+                
+                routeIndex++;
+                return updated;
+            });
+        }, 3000);
+
+        // Connect to WebSocket
+        const ws = new WebSocket('ws://10.0.2.2:8000/ws/live-tracking/');
+        wsRef.current = ws;
+
+        ws.onopen = () => {
+            console.log('WebSocket connection opened');
+        };
+
+        ws.onmessage = (event) => {
+            try {
+                const message = JSON.parse(event.data);
+                if (message.type === 'location_update' || message.vehicle_id) {
+                    setVehicles((prev) => {
+                        return prev.map((v) => {
+                            if (v.id === message.vehicle_id) {
+                                return {
+                                    ...v,
+                                    latest_location: {
+                                        latitude: message.latitude,
+                                        longitude: message.longitude,
+                                        speed_kmh: message.speed_kmh,
+                                    },
+                                    status: 'active'
+                                };
+                            }
+                            return v;
+                        });
+                    });
+                }
+            } catch (err) {
+                console.error('Error parsing WebSocket message', err);
+            }
+        };
+
+        ws.onerror = (error) => {
+            console.error('WebSocket error:', error);
+        };
+
+        ws.onclose = () => {
+            console.log('WebSocket closed');
+        };
+
+        return () => {
+            clearInterval(simulationInterval);
+            if (wsRef.current) {
+                wsRef.current.close();
+            }
+        };
     }, []);
 
     async function loadVehicles() {
@@ -40,12 +156,55 @@ export default function LiveMapScreen() {
         );
     }
 
+    const defaultRegion = {
+        latitude: vehicles[0]?.latest_location?.latitude || 15.5937,
+        longitude: vehicles[0]?.latest_location?.longitude || 73.8105,
+        latitudeDelta: 0.02,
+        longitudeDelta: 0.02,
+    };
+
     return (
         <View style={styles.container}>
             <Text style={styles.heading}>Live Map</Text>
             <Text style={styles.sub}>
-                {vehicles.length} vehicle{vehicles.length !== 1 ? 's' : ''} tracked · refreshes every 15 s
+                {vehicles.length} vehicle{vehicles.length !== 1 ? 's' : ''} tracked live
             </Text>
+
+            <View style={styles.mapContainer}>
+                <MapView
+                    style={styles.map}
+                    initialRegion={defaultRegion}
+                >
+                    {/* Heatmap for garbage locations */}
+                    <Heatmap
+                        points={MOCK_GARBAGE_LOCATIONS}
+                        radius={40}
+                        opacity={0.7}
+                        gradient={{
+                            colors: ['#00000000', '#0000FFFF', '#00FF00FF', '#FF0000FF'],
+                            startPoints: [0, 0.2, 0.5, 1],
+                            colorMapSize: 256
+                        }}
+                    />
+
+                    {/* Live markers for vehicles */}
+                    {vehicles.map((v) => {
+                        if (!v.latest_location) return null;
+                        return (
+                            <Marker
+                                key={v.id}
+                                coordinate={{
+                                    latitude: Number(v.latest_location.latitude),
+                                    longitude: Number(v.latest_location.longitude)
+                                }}
+                                title={v.registration}
+                                description={`${v.make || ''} ${v.model || ''} - ${Number(v.latest_location.speed_kmh || 0).toFixed(1)} km/h`}
+                                pinColor={v.status === 'active' ? COLORS.success : COLORS.warning}
+                            />
+                        );
+                    })}
+                </MapView>
+            </View>
 
             <FlatList
                 data={vehicles}
@@ -87,8 +246,8 @@ export default function LiveMapScreen() {
                             <View style={[styles.statusDot, {
                                 backgroundColor:
                                     item.status === 'active' ? COLORS.success :
-                                    item.status === 'idle' ? COLORS.warning :
-                                    COLORS.error,
+                                        item.status === 'idle' ? COLORS.warning :
+                                            COLORS.error,
                             }]} />
                         </TouchableOpacity>
                     );
@@ -103,8 +262,8 @@ export default function LiveMapScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: COLORS.background, padding: SPACING.md },
-    center: { flex: 1, backgroundColor: COLORS.background, justifyContent: 'center', alignItems: 'center' },
+    container: { flex: 1, backgroundColor: 'transparent', padding: SPACING.md },
+    center: { flex: 1, backgroundColor: 'transparent', justifyContent: 'center', alignItems: 'center' },
     loadingText: { color: COLORS.textSecondary, marginTop: SPACING.sm },
     heading: {
         fontSize: FONT_SIZES.xxl,
@@ -113,7 +272,16 @@ const styles = StyleSheet.create({
         paddingTop: SPACING.xl,
         marginBottom: SPACING.xs,
     },
-    sub: { fontSize: FONT_SIZES.xs, color: COLORS.textSecondary, marginBottom: SPACING.md },
+    sub: { fontSize: FONT_SIZES.xs, color: COLORS.textSecondary, marginBottom: SPACING.xs },
+    mapContainer: {
+        height: 250,
+        borderRadius: RADIUS.md,
+        overflow: 'hidden',
+        marginBottom: SPACING.md,
+        borderWidth: 1,
+        borderColor: COLORS.surface,
+    },
+    map: { flex: 1 },
     list: { paddingBottom: SPACING.xxl },
     row: {
         flexDirection: 'row',

@@ -55,7 +55,8 @@ class TaskProof(models.Model):
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='proofs')
     proof_type = models.CharField(max_length=20, choices=PROOF_TYPE_CHOICES)
     image = models.ImageField(upload_to='task_proofs/')
-    
+    worker_selfie = models.ImageField(upload_to='task_proofs/selfies/', null=True, blank=True)
+
     gps_lat = models.FloatField()
     gps_lon = models.FloatField()
     

@@ -2,6 +2,8 @@ import { useState, useRef } from 'react';
 import { View, Text, StyleSheet, Alert } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import CustomButton from '../../src/components/CustomButton';
 import { COLORS, SPACING, FONT_SIZES, RADIUS } from '../../src/constants/theme';
 
@@ -13,15 +15,15 @@ export default function CameraScreen() {
     const cameraRef = useRef(null);
 
     if (!permission) {
-        return <View style={styles.container} />;
+        return <LinearGradient colors={['#2C3E50', '#1A252F']} style={styles.container} />;
     }
 
     if (!permission.granted) {
         return (
-            <View style={styles.container}>
+            <LinearGradient colors={['#2C3E50', '#1A252F']} style={styles.container}>
                 <Text style={styles.message}>Camera access is needed for selfie verification.</Text>
                 <CustomButton title="Grant Permission" onPress={requestPermission} />
-            </View>
+            </LinearGradient>
         );
     }
 
@@ -44,10 +46,12 @@ export default function CameraScreen() {
     }
 
     return (
-        <View style={styles.container}>
+        <LinearGradient colors={['#2C3E50', '#1A252F']} style={styles.container}>
             <CameraView style={styles.camera} facing="front" ref={cameraRef}>
                 <View style={styles.overlay}>
-                    <Text style={styles.hint}>Position your face in the frame</Text>
+                    <BlurView intensity={30} tint="dark" style={styles.hintContainer} overflow="hidden">
+                        <Text style={styles.hint}>Position your face in the frame</Text>
+                    </BlurView>
                     <View style={styles.faceGuide} />
                     <CustomButton
                         title={capturing ? 'Capturing…' : 'Take Selfie'}
@@ -63,14 +67,13 @@ export default function CameraScreen() {
                     />
                 </View>
             </CameraView>
-        </View>
+        </LinearGradient>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: COLORS.background,
         justifyContent: 'center',
         padding: SPACING.md,
     },
@@ -82,20 +85,21 @@ const styles = StyleSheet.create({
         paddingBottom: SPACING.xxl,
         gap: SPACING.sm,
     },
+    hintContainer: {
+        borderRadius: RADIUS.full,
+        marginBottom: SPACING.lg,
+    },
     hint: {
         color: COLORS.white,
         fontSize: FONT_SIZES.sm,
-        backgroundColor: 'rgba(0,0,0,0.5)',
         paddingHorizontal: SPACING.md,
         paddingVertical: SPACING.xs,
-        borderRadius: RADIUS.full,
-        marginBottom: SPACING.lg,
     },
     faceGuide: {
         width: 200,
         height: 240,
         borderWidth: 2,
-        borderColor: COLORS.primary,
+        borderColor: COLORS.secondary,
         borderRadius: 100,
         marginBottom: SPACING.xl,
     },

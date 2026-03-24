@@ -1,12 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
     View, Text, TextInput, StyleSheet,
-    KeyboardAvoidingView, Platform, ScrollView, Alert,
+    KeyboardAvoidingView, Platform, ScrollView, Alert, TouchableOpacity
 } from 'react-native';
 import { useRouter, Link } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { login } from '../../src/services/authApi';
-import CustomButton from '../../src/components/CustomButton';
-import { COLORS, SPACING, FONT_SIZES, RADIUS } from '../../src/constants/theme';
 
 export default function LoginScreen() {
     const router = useRouter();
@@ -14,15 +14,26 @@ export default function LoginScreen() {
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
 
+    useEffect(() => {
+        const loadProfile = async () => {
+            const saved = await AsyncStorage.getItem('last_username');
+            if (saved) {
+                setUsername(saved);
+            }
+        };
+        loadProfile();
+    }, []);
+
     async function handleLogin() {
         if (!username.trim() || !password.trim()) {
-            Alert.alert('Validation', 'Please enter both username and password.');
+            Alert.alert('Validation', 'Please enter your username/email and password.');
             return;
         }
         setLoading(true);
         try {
             const user = await login(username.trim(), password);
-            if (user.role === 'admin' || user.role === 'supervisor') {
+            await AsyncStorage.setItem('last_username', username.trim());
+            if (user.role === 'ADMIN' || user.role === 'SUPERVISOR') {
                 router.replace('/(admin)/dashboard');
             } else {
                 router.replace('/(worker)/dashboard');
@@ -39,117 +50,138 @@ export default function LoginScreen() {
     }
 
     return (
-        <KeyboardAvoidingView
-            style={styles.flex}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
-            <ScrollView
-                contentContainerStyle={styles.container}
-                keyboardShouldPersistTaps="handled"
+        <LinearGradient colors={['#1F1633', '#1A1B30', '#101124']} style={styles.flex}>
+            <KeyboardAvoidingView
+                style={styles.flex}
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             >
-                <Text style={styles.logo}>WorkSense</Text>
-                <Text style={styles.subtitle}>Workforce Management Platform</Text>
+                <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps='handled'>
+                    
+                    <View style={styles.header}>
+                        <Text style={styles.topSmallText}>WELCOME BACK</Text>
+                        <Text style={styles.logo}>WorkSense</Text>
+                    </View>
+                    
+                    <View style={styles.card}>
+                        <Text style={styles.label}>Username or Email</Text>
+                        <View style={styles.inputContainer}>
+                            <TextInput
+                                style={styles.input}
+                                value={username}
+                                onChangeText={setUsername}
+                                autoCapitalize='none'
+                                autoCorrect={false}
+                                placeholder='you@email.com or username'
+                                placeholderTextColor='#7b7c8f'
+                            />
+                        </View>
 
-                <View style={styles.card}>
-                    <Text style={styles.label}>Username</Text>
-                    <TextInput
-                        style={styles.input}
-                        value={username}
-                        onChangeText={setUsername}
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                        placeholder="Enter your username"
-                        placeholderTextColor={COLORS.textSecondary}
-                    />
+                        <Text style={styles.label}>Password</Text>
+                        <View style={styles.inputContainer}>
+                            <TextInput
+                                style={styles.input}
+                                value={password}
+                                onChangeText={setPassword}
+                                secureTextEntry
+                                placeholder='• • • • • • • •'
+                                placeholderTextColor='#7b7c8f'
+                                onSubmitEditing={handleLogin}
+                            />
+                        </View>
 
-                    <Text style={styles.label}>Password</Text>
-                    <TextInput
-                        style={styles.input}
-                        value={password}
-                        onChangeText={setPassword}
-                        secureTextEntry
-                        placeholder="Enter your password"
-                        placeholderTextColor={COLORS.textSecondary}
-                        onSubmitEditing={handleLogin}
-                    />
-
-                    <CustomButton
-                        title="Log In"
-                        onPress={handleLogin}
-                        loading={loading}
-                        style={styles.btn}
-                    />
+                        <TouchableOpacity 
+                            style={[styles.btn, loading && { opacity: 0.7 }]} 
+                            onPress={handleLogin}
+                            disabled={loading}
+                        >
+                            <Text style={styles.btnText}>{loading ? 'Signing In...' : 'Sign In'}</Text>
+                        </TouchableOpacity>
+                    </View>
 
                     <View style={styles.registerLinkContainer}>
                         <Text style={styles.linkPrompt}>New to WorkSense? </Text>
-                        <Link href="/(auth)/register" style={styles.linkText}>
-                            Register here
-                        </Link>
+                        <Link href='/(auth)/register' style={styles.linkText}>Create an account</Link>
                     </View>
-                </View>
-            </ScrollView>
-        </KeyboardAvoidingView>
+
+                </ScrollView>
+            </KeyboardAvoidingView>
+        </LinearGradient>
     );
 }
 
 const styles = StyleSheet.create({
-    flex: { flex: 1, backgroundColor: COLORS.background },
+    flex: { flex: 1 },
     container: {
         flexGrow: 1,
         justifyContent: 'center',
-        padding: SPACING.xl,
+        padding: 24,
+    },
+    header: {
+        alignItems: 'center',
+        marginBottom: 40,
+    },
+    topSmallText: {
+        fontSize: 12,
+        fontWeight: '700',
+        letterSpacing: 2,
+        color: '#f6a5b4',
+        marginBottom: 8,
     },
     logo: {
-        fontSize: FONT_SIZES.xxxl,
-        fontWeight: '900',
-        color: COLORS.primary,
-        textAlign: 'center',
-        marginBottom: SPACING.xs,
-    },
-    subtitle: {
-        fontSize: FONT_SIZES.sm,
-        color: COLORS.textSecondary,
-        textAlign: 'center',
-        marginBottom: SPACING.xxl,
+        fontSize: 36,
+        fontWeight: 'bold',
+        color: '#ffffff',
     },
     card: {
-        backgroundColor: COLORS.surface,
-        borderRadius: RADIUS.lg,
-        padding: SPACING.lg,
+        backgroundColor: 'rgba(255, 255, 255, 0.03)',
+        borderRadius: 20,
+        padding: 24,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.08)',
     },
     label: {
-        fontSize: FONT_SIZES.sm,
-        fontWeight: '600',
-        color: COLORS.textSecondary,
-        marginBottom: SPACING.xs,
-        marginTop: SPACING.sm,
+        fontSize: 13,
+        color: '#d1d1d1',
+        marginBottom: 8,
+        marginLeft: 4,
+    },
+    inputContainer: {
+        backgroundColor: '#1b1c31',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.05)',
+        marginBottom: 20,
     },
     input: {
-        backgroundColor: COLORS.surfaceLight,
-        borderRadius: RADIUS.sm,
-        color: COLORS.text,
-        fontSize: FONT_SIZES.md,
-        paddingHorizontal: SPACING.md,
-        paddingVertical: SPACING.sm,
-        borderWidth: 1,
-        borderColor: COLORS.border,
+        color: '#ffffff',
+        fontSize: 15,
+        paddingHorizontal: 16,
+        paddingVertical: 14,
     },
     btn: {
-        marginTop: SPACING.lg,
-        marginBottom: SPACING.md,
+        backgroundColor: '#9e0b3c',
+        borderRadius: 12,
+        paddingVertical: 16,
+        alignItems: 'center',
+        marginTop: 8,
+    },
+    btnText: {
+        color: '#ffffff',
+        fontSize: 16,
+        fontWeight: 'bold',
     },
     registerLinkContainer: {
         flexDirection: 'row',
         justifyContent: 'center',
-        marginTop: SPACING.sm,
+        marginTop: 32,
     },
     linkPrompt: {
-        color: COLORS.textSecondary,
-        fontSize: FONT_SIZES.sm,
+        color: '#8b8c9f',
+        fontSize: 14,
     },
     linkText: {
-        color: COLORS.primary,
-        fontSize: FONT_SIZES.sm,
-        fontWeight: 'bold',
+        color: '#f6a5b4',
+        fontSize: 14,
+        fontWeight: '600',
     },
 });

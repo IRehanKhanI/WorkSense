@@ -1,7 +1,7 @@
 from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes, parser_classes
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.utils import timezone
 from datetime import datetime
@@ -72,6 +72,7 @@ class TaskProofViewSet(viewsets.ViewSet):
         task_id = serializer.validated_data['task_id']
         proof_type = serializer.validated_data['proof_type']
         image = serializer.validated_data['image']
+        worker_selfie = serializer.validated_data.get('worker_selfie')
         gps_lat = serializer.validated_data['gps_lat']
         gps_lon = serializer.validated_data['gps_lon']
         
@@ -87,6 +88,14 @@ class TaskProofViewSet(viewsets.ViewSet):
                 status=status.HTTP_403_FORBIDDEN
             )
         
+        if proof_type == 'AFTER':
+            # Need a BEFORE proof first
+            if not task.proofs.filter(proof_type='BEFORE').exists():
+                return Response(
+                    {'error': 'Please upload BEFORE image first'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        
         # Create watermark text
         now = timezone.now()
         watermark_text = f"{now.strftime('%Y-%m-%d %H:%M:%S')}, {gps_lat:.4f}°, {gps_lon:.4f}°"
@@ -97,29 +106,84 @@ class TaskProofViewSet(viewsets.ViewSet):
             proof_type=proof_type,
             defaults={
                 'image': image,
+                'worker_selfie': worker_selfie,
                 'gps_lat': gps_lat,
                 'gps_lon': gps_lon,
                 'watermark_text': watermark_text
             }
         )
         
-        # Auto-create TaskSLA if both before and after proofs exist
-        if task.proofs.filter(proof_type='BEFORE').exists() and task.proofs.filter(proof_type='AFTER').exists():
+        verification_response = None
+        
+        if proof_type == 'BEFORE':
+            task.status = 'IN_PROGRESS'
+            task.save()
+        elif proof_type == 'AFTER':
             before_proof = task.proofs.get(proof_type='BEFORE')
-            after_proof = task.proofs.get(proof_type='AFTER')
             
+            # Create SLA
             TaskSLA.objects.update_or_create(
                 task=task,
                 defaults={
                     'before_photo_time': before_proof.submitted_at,
-                    'after_photo_time': after_proof.submitted_at
+                    'after_photo_time': proof.submitted_at
                 }
             )
+            
+            # AI Verification
+            detector = get_detector()
+            verification_data = {
+                'recommendation_message': 'Model not loaded',
+                'verification_status': 'error',
+                'error_message': 'Detector not available',
+            }
+            if detector:
+                try:
+                    comparison = detector.compare_before_after(
+                        before_proof.image.path,
+                        proof.image.path,
+                        threshold=0.6
+                    )
+                    
+                    if comparison.get('success'):
+                        cleanup_successful = comparison.get('cleanup_successful', False)
+                        verification_data = {
+                            'cleanup_confidence': comparison.get('cleanup_confidence', 0.0),
+                            'recommendation_message': comparison.get('recommendation', {}).get('message', ''),
+                            'verification_status': 'verified_clean' if cleanup_successful else 'incomplete',
+                            'error_message': '',
+                        }
+                        
+                        if cleanup_successful:
+                            task.status = 'COMPLETED'
+                        else:
+                            task.status = 'REJECTED'
+                        task.save()
+                    else:
+                        verification_data['error_message'] = comparison.get('error', 'Unknown error')
+                except Exception as e:
+                    verification_data['error_message'] = str(e)
+            
+            # Save verification result
+            VerificationResult.objects.update_or_create(
+                task=task,
+                defaults=verification_data
+            )
+            
+            # Update metrics
+            metrics, _ = CleaningMetrics.objects.get_or_create(worker=task.assigned_to)
+            metrics.calculate_metrics()
+            
+            verification_response = verification_data
         
-        return Response({
+        response_data = {
             'message': f'{proof_type} proof uploaded successfully',
             'proof': TaskProofSerializer(proof).data
-        }, status=status.HTTP_201_CREATED)
+        }
+        if verification_response:
+            response_data['verification'] = verification_response
+            
+        return Response(response_data, status=status.HTTP_201_CREATED)
     
     @action(detail=False, methods=['get'])
     def list_proofs(self, request):
@@ -188,8 +252,8 @@ from django.conf import settings
 def get_detector():
     """Get the ViT cleaning detector instance"""
     try:
-        from .ai_models.cleaning_detector import CleaningDetector
-        model_path = getattr(settings, 'CLEANING_MODEL_PATH', 'models/vit-base-patch16-224')
+        from ml_models.models.inference import CleaningDetector
+        model_path = getattr(settings, 'CLEANING_MODEL_PATH', 'ml_models/models/vit_cleaning_detector/best_model')
         return CleaningDetector(model_path)
     except Exception as e:
         print(f"Error loading detector: {e}")

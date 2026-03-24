@@ -46,6 +46,8 @@ class AttendanceLog(models.Model):
     vpn_detected = models.BooleanField(default=False)
     dev_mode_detected = models.BooleanField(default=False)
     mock_location_detected = models.BooleanField(default=False)
+    selfie = models.ImageField(upload_to='attendance_selfies/', null=True, blank=True)
+    face_verified = models.BooleanField(default=False)
     
     # Result
     attendance_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='ACCEPTED')

@@ -1,40 +1,53 @@
 import { useState } from 'react';
 import {
     View, Text, TextInput, StyleSheet,
-    KeyboardAvoidingView, Platform, ScrollView, Alert,
+    KeyboardAvoidingView, Platform, ScrollView, Alert, TouchableOpacity
 } from 'react-native';
 import { useRouter, Link } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { register } from '../../src/services/authApi';
-import CustomButton from '../../src/components/CustomButton';
-import { COLORS, SPACING, FONT_SIZES, RADIUS } from '../../src/constants/theme';
 
 export default function RegisterScreen() {
     const router = useRouter();
-    const [username, setUsername] = useState('');
+    const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [phone, setPhone] = useState('');
     const [loading, setLoading] = useState(false);
 
     async function handleRegister() {
-        if (!username.trim() || !email.trim() || !password.trim()) {
-            Alert.alert('Validation', 'Please fill out all fields.');
+        if (!name.trim() || !email.trim() || !password.trim()) {
+            Alert.alert('Validation', 'Please fill out all required fields.');
             return;
         }
 
         setLoading(true);
         try {
-            // Register as a basic WORKER role by default.
-            const user = await register(username.trim(), email.trim(), password, null, 'WORKER');
-            if (user.role === 'admin' || user.role === 'supervisor') {
+            // Note: Our authApi uses username, but the UI expects Full Name. 
+            // We use the name field as the username for this API logic seamlessly.
+            const user = await register(name.trim(), email.trim(), password, phone.trim(), 'WORKER');
+            await AsyncStorage.setItem('last_username', name.trim());
+            if (user.role === 'ADMIN' || user.role === 'SUPERVISOR') {
                 router.replace('/(admin)/dashboard');
             } else {
                 router.replace('/(worker)/dashboard');
             }
         } catch (err) {
-            const msg =
-                err.response?.data?.detail ??
-                err.response?.data?.non_field_errors?.[0] ??
-                'Registration failed. Please try a different username or email.';
+            let msg = 'Registration failed. Please try a different email or name.';
+            if (err.response && err.response.data) {
+                const data = err.response.data;
+                const errors = [];
+                if (data.username) errors.push('Name/Username: ' + data.username[0]);
+                if (data.email) errors.push('Email: ' + data.email[0]);
+                if (data.phone_device_id) errors.push('Phone: ' + data.phone_device_id[0]);
+                if (data.detail) errors.push(data.detail);
+                if (data.non_field_errors) errors.push(data.non_field_errors[0]);
+                
+                if (errors.length > 0) {
+                    msg = errors.join('\n');
+                }
+            }
             Alert.alert('Registration Error', msg);
         } finally {
             setLoading(false);
@@ -42,129 +55,185 @@ export default function RegisterScreen() {
     }
 
     return (
-        <KeyboardAvoidingView
-            style={styles.flex}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
-            <ScrollView
-                contentContainerStyle={styles.container}
-                keyboardShouldPersistTaps="handled"
+        <LinearGradient colors={['#1F1633', '#1A1B30', '#101124']} style={styles.flex}>
+            <KeyboardAvoidingView
+                style={styles.flex}
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             >
-                <Text style={styles.logo}>WorkSense</Text>
-                <Text style={styles.subtitle}>Create your account</Text>
+                <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps='handled'>
+                    
+                    <View style={styles.header}>
+                        <Text style={styles.topSmallText}>JOIN NOW</Text>
+                        <Text style={styles.logo}>WorkSense</Text>
+                        <Text style={styles.subtitle}>Your AI Health Companion</Text>
+                    </View>
 
-                <View style={styles.card}>
-                    <Text style={styles.label}>Username</Text>
-                    <TextInput
-                        style={styles.input}
-                        value={username}
-                        onChangeText={setUsername}
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                        placeholder="Choose a username"
-                        placeholderTextColor={COLORS.textSecondary}
-                    />
+                    <View style={styles.card}>
+                        <Text style={styles.label}>Full Name *</Text>
+                        <View style={styles.inputContainer}>
+                            <TextInput
+                                style={styles.input}
+                                value={name}
+                                onChangeText={setName}
+                                autoCapitalize='words'
+                                autoCorrect={false}
+                                placeholder='John Doe'
+                                placeholderTextColor='#7b7c8f'
+                            />
+                        </View>
 
-                    <Text style={styles.label}>Email Address</Text>
-                    <TextInput
-                        style={styles.input}
-                        value={email}
-                        onChangeText={setEmail}
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                        keyboardType="email-address"
-                        placeholder="Enter your email"
-                        placeholderTextColor={COLORS.textSecondary}
-                    />
+                        <Text style={styles.label}>Email Address *</Text>
+                        <View style={styles.inputContainer}>
+                            <TextInput
+                                style={styles.input}
+                                value={email}
+                                onChangeText={setEmail}
+                                autoCapitalize='none'
+                                autoCorrect={false}
+                                keyboardType='email-address'
+                                placeholder='you@email.com'
+                                placeholderTextColor='#7b7c8f'
+                            />
+                        </View>
 
-                    <Text style={styles.label}>Password</Text>
-                    <TextInput
-                        style={styles.input}
-                        value={password}
-                        onChangeText={setPassword}
-                        secureTextEntry
-                        placeholder="Choose a strong password"
-                        placeholderTextColor={COLORS.textSecondary}
-                        onSubmitEditing={handleRegister}
-                    />
+                        <Text style={styles.label}>Password *</Text>
+                        <View style={styles.inputContainer}>
+                            <TextInput
+                                style={styles.input}
+                                value={password}
+                                onChangeText={setPassword}
+                                secureTextEntry
+                                placeholder='• • • • • • • •'
+                                placeholderTextColor='#7b7c8f'
+                            />
+                        </View>
 
-                    <CustomButton
-                        title="Sign Up"
-                        onPress={handleRegister}
-                        loading={loading}
-                        style={styles.btn}
-                    />
+                        <View style={styles.divider}>
+                            <Text style={styles.dividerText}>Emergency Contacts (Optional)</Text>
+                        </View>
+
+                        <Text style={styles.label}>SMS Alert Number</Text>
+                        <View style={styles.inputContainer}>
+                            <TextInput
+                                style={styles.input}
+                                value={phone}
+                                onChangeText={setPhone}
+                                keyboardType='phone-pad'
+                                placeholder='9890702314'
+                                placeholderTextColor='#7b7c8f'
+                            />
+                        </View>
+
+                        <TouchableOpacity 
+                            style={[styles.btn, loading && { opacity: 0.7 }]} 
+                            onPress={handleRegister}
+                            disabled={loading}
+                        >
+                            <Text style={styles.btnText}>{loading ? 'Creating...' : 'Create Account'}</Text>
+                        </TouchableOpacity>
+                    </View>
 
                     <View style={styles.loginLinkContainer}>
                         <Text style={styles.linkPrompt}>Already have an account? </Text>
-                        <Link href="/(auth)/login" style={styles.linkText}>
-                            Log in here
-                        </Link>
+                        <Link href='/(auth)/login' style={styles.linkText}>Sign In here</Link>
                     </View>
-                </View>
-            </ScrollView>
-        </KeyboardAvoidingView>
+
+                </ScrollView>
+            </KeyboardAvoidingView>
+        </LinearGradient>
     );
 }
 
 const styles = StyleSheet.create({
-    flex: { flex: 1, backgroundColor: COLORS.background },
+    flex: { flex: 1 },
     container: {
         flexGrow: 1,
         justifyContent: 'center',
-        padding: SPACING.xl,
+        padding: 24,
+        paddingTop: 60,
+        paddingBottom: 40,
+    },
+    header: {
+        alignItems: 'center',
+        marginBottom: 30,
+    },
+    topSmallText: {
+        fontSize: 12,
+        fontWeight: '700',
+        letterSpacing: 2,
+        color: '#f6a5b4',
+        marginBottom: 8,
     },
     logo: {
-        fontSize: FONT_SIZES.xxxl,
-        fontWeight: '900',
-        color: COLORS.primary,
-        textAlign: 'center',
-        marginBottom: SPACING.xs,
+        fontSize: 36,
+        fontWeight: 'bold',
+        color: '#ffffff',
+        marginBottom: 4,
     },
     subtitle: {
-        fontSize: FONT_SIZES.sm,
-        color: COLORS.textSecondary,
-        textAlign: 'center',
-        marginBottom: SPACING.xxl,
+        fontSize: 14,
+        color: '#8b8c9f',
+        marginTop: 4,
     },
     card: {
-        backgroundColor: COLORS.surface,
-        borderRadius: RADIUS.lg,
-        padding: SPACING.lg,
+        backgroundColor: 'rgba(255, 255, 255, 0.03)',
+        borderRadius: 20,
+        padding: 24,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.08)',
     },
     label: {
-        fontSize: FONT_SIZES.sm,
-        fontWeight: '600',
-        color: COLORS.textSecondary,
-        marginBottom: SPACING.xs,
-        marginTop: SPACING.sm,
+        fontSize: 13,
+        color: '#d1d1d1',
+        marginBottom: 8,
+        marginLeft: 4,
+    },
+    inputContainer: {
+        backgroundColor: '#1b1c31',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.05)',
+        marginBottom: 16,
     },
     input: {
-        backgroundColor: COLORS.surfaceLight,
-        borderRadius: RADIUS.sm,
-        color: COLORS.text,
-        fontSize: FONT_SIZES.md,
-        paddingHorizontal: SPACING.md,
-        paddingVertical: SPACING.sm,
-        borderWidth: 1,
-        borderColor: COLORS.border,
+        color: '#ffffff',
+        fontSize: 15,
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+    },
+    divider: {
+        alignItems: 'center',
+        marginVertical: 16,
+    },
+    dividerText: {
+        color: '#f6a5b4',
+        fontSize: 14,
+        fontWeight: '600',
     },
     btn: {
-        marginTop: SPACING.lg,
-        marginBottom: SPACING.md,
+        backgroundColor: '#9e0b3c',
+        borderRadius: 12,
+        paddingVertical: 16,
+        alignItems: 'center',
+        marginTop: 16,
+    },
+    btnText: {
+        color: '#ffffff',
+        fontSize: 16,
+        fontWeight: 'bold',
     },
     loginLinkContainer: {
         flexDirection: 'row',
         justifyContent: 'center',
-        marginTop: SPACING.sm,
+        marginTop: 32,
     },
     linkPrompt: {
-        color: COLORS.textSecondary,
-        fontSize: FONT_SIZES.sm,
+        color: '#8b8c9f',
+        fontSize: 14,
     },
     linkText: {
-        color: COLORS.primary,
-        fontSize: FONT_SIZES.sm,
-        fontWeight: 'bold',
+        color: '#f6a5b4',
+        fontSize: 14,
+        fontWeight: '600',
     },
 });

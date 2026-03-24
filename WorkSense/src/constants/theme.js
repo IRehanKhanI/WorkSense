@@ -1,43 +1,45 @@
 // Colour palette and design tokens for WorkSense
 export const COLORS = {
-    primary: '#419d78',
-    primaryDark: '#2d7a5c',
-    secondary: '#fed766',
-    background: '#011627',
-    surface: '#0d2137',
-    surfaceLight: '#1a3350',
-    text: '#e8f4f8',
-    textSecondary: '#8badc0',
-    error: '#e63946',
-    warning: '#f4a261',
-    success: '#52b788',
-    white: '#ffffff',
-    black: '#000000',
-    border: '#1e3a52',
+  primary: "rgba(255, 255, 255, 0.15)",
+  primaryDark: "rgba(0, 0, 0, 0.4)", // Darker glass
+  secondary: "#FF5733",
+  accent: "#FF1493",
+  background: "transparent", // Let the global gradient show through
+  surface: "rgba(231, 77, 77, 0.1)", // glass effect base
+  surfaceLight: "rgba(255, 255, 255, 0.2)", // glass effect lighter
+  cardBg: "rgba(255, 255, 255, 0.1)", // standard card liquid glass background
+  text: "#ffffff",
+  textSecondary: "rgba(255, 255, 255, 0.7)",
+  error: "#FF1493",
+  warning: "#FF5733",
+  success: "#00E676",
+  white: "#ffffff",
+  black: "#000000",
+  border: "rgba(255, 255, 255, 0.2)",
 };
 
 export const SPACING = {
-    xs: 4,
-    sm: 8,
-    md: 16,
-    lg: 24,
-    xl: 32,
-    xxl: 48,
+  xs: 4,
+  sm: 8,
+  md: 16,
+  lg: 24,
+  xl: 32,
+  xxl: 48,
 };
 
 export const FONT_SIZES = {
-    xs: 11,
-    sm: 13,
-    md: 15,
-    lg: 18,
-    xl: 22,
-    xxl: 28,
-    xxxl: 36,
+  xs: 11,
+  sm: 13,
+  md: 15,
+  lg: 18,
+  xl: 22,
+  xxl: 28,
+  xxxl: 36,
 };
 
 export const RADIUS = {
-    sm: 6,
-    md: 10,
-    lg: 16,
-    full: 999,
+  sm: 6,
+  md: 10,
+  lg: 16,
+  full: 999,
 };

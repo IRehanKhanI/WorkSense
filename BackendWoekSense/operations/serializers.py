@@ -5,7 +5,7 @@ from .models import Task, TaskProof, TaskSLA
 class TaskProofSerializer(serializers.ModelSerializer):
     class Meta:
         model = TaskProof
-        fields = ['id', 'proof_type', 'image', 'gps_lat', 'gps_lon', 'submitted_at', 'watermark_text']
+        fields = ['id', 'proof_type', 'image', 'worker_selfie', 'gps_lat', 'gps_lon', 'submitted_at', 'watermark_text']
         read_only_fields = ['id', 'submitted_at']
 
 
@@ -56,6 +56,7 @@ class TaskSerializer(serializers.ModelSerializer):
 class TaskProofUploadSerializer(serializers.Serializer):
     """Serializer for uploading proof images"""
     image = serializers.ImageField()
+    worker_selfie = serializers.ImageField(required=False)
     gps_lat = serializers.FloatField()
     gps_lon = serializers.FloatField()
     proof_type = serializers.ChoiceField(choices=['BEFORE', 'AFTER'])
