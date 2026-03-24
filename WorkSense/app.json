@@ -38,6 +38,18 @@
             "backgroundColor": "#000000"
           }
         }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow WorkSense to access your camera for attendance selfie verification."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow WorkSense to access your location for geofenced attendance and tracking."
+        }
       ]
     ],
     "experiments": {
