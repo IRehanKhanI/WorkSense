@@ -1,9 +1,19 @@
-from rest_framework import serializers
-from django.contrib.auth import get_user_model
-User = get_user_model()
-from .models import UserProfile, DeviceSession
-from django.utils import timezone
+import uuid
 from datetime import timedelta
+
+from django.contrib.auth import get_user_model
+from django.db import transaction
+from django.utils import timezone
+from rest_framework import serializers
+
+from .models import UserProfile, DeviceSession
+
+User = get_user_model()
+
+
+def _generate_device_id():
+    """Return a unique web device identifier."""
+    return f'web_{uuid.uuid4().hex}'
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -26,7 +36,7 @@ class RegisterSerializer(serializers.Serializer):
     username = serializers.CharField(write_only=True, required=True)
     email = serializers.EmailField(write_only=True, required=True)
     password = serializers.CharField(write_only=True, required=True)
-    phone_device_id = serializers.CharField(write_only=True, required=False, allow_blank=True, default='web_device')
+    phone_device_id = serializers.CharField(write_only=True, required=False, allow_blank=True)
     role = serializers.ChoiceField(choices=['WORKER', 'SUPERVISOR', 'ADMIN'], default='WORKER')
     first_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
     last_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
@@ -46,16 +56,17 @@ class RegisterSerializer(serializers.Serializer):
         return value
     
     def validate_phone_device_id(self, value):
-        if value and value != 'web_device' and UserProfile.objects.filter(phone_device_id=value).exists():
+        if value and UserProfile.objects.filter(phone_device_id=value).exists():
             raise serializers.ValidationError("Device already registered to another user.")
         return value
     
+    @transaction.atomic
     def create(self, validated_data):
         # Extract serialized fields
         username = validated_data.pop('username')
         email = validated_data.pop('email')
         password = validated_data.pop('password')
-        phone_device_id = validated_data.pop('phone_device_id', 'web_device')
+        phone_device_id = validated_data.pop('phone_device_id', None) or _generate_device_id()
         role = validated_data.pop('role', 'WORKER')
         first_name = validated_data.pop('first_name', '')
         last_name = validated_data.pop('last_name', '')
@@ -113,22 +124,21 @@ class LoginSerializer(serializers.Serializer):
         
         username = data.get('username')
         password = data.get('password')
-        phone_device_id = data.get('phone_device_id')
         
         # Authenticate user
         user = authenticate(username=username, password=password)
         if not user:
             raise serializers.ValidationError("Invalid username/password.")
         
-        # Get profile
-        try:
-            profile = UserProfile.objects.get(user=user)
-        except UserProfile.DoesNotExist:
-            raise serializers.ValidationError("User profile not found.")
-        
-        # Validate device is ignored since requirements are removed
-        # if profile.phone_device_id != phone_device_id:
-        #     raise serializers.ValidationError("Device not registered for this user.")
+        # Get or create profile so users created outside registration can still log in
+        profile, _ = UserProfile.objects.get_or_create(
+            user=user,
+            defaults={
+                'phone_device_id': _generate_device_id(),
+                'role': 'WORKER',
+                'is_device_registered': False,
+            }
+        )
         
         data['user'] = user
         data['profile'] = profile

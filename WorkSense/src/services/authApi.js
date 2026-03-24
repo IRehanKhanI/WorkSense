@@ -13,16 +13,18 @@ export async function login(username, password) {
     // The backend uses DRF Token Authentication.
     // It returns: { token, user: {id, username}, profile: {role, phone_device_id} }
     const { token, user, profile } = response.data;
+    // Normalise role to lowercase so comparisons work regardless of backend casing
+    const role = (profile.role || '').toLowerCase();
     
     await AsyncStorage.multiSet([
         ['access_token', token],
-        ['user', JSON.stringify({ role: profile.role, user_id: user.id, username: user.username })],
+        ['user', JSON.stringify({ role, user_id: user.id, username: user.username })],
     ]);
-    return { role: profile.role, user_id: user.id, username: user.username };
+    return { role, user_id: user.id, username: user.username };
 }
 
-export async function register(username, email, password, deviceId, role) {
-    const payload = { username, email, password, role };
+export async function register(username, email, password, deviceId, requestedRole) {
+    const payload = { username, email, password, role: requestedRole };
     // Optionally include deviceId if provided
     if (deviceId) {
         payload.phone_device_id = deviceId;
@@ -30,11 +32,13 @@ export async function register(username, email, password, deviceId, role) {
     const response = await axios.post(`${BASE_URL}/auth/register/`, payload);
     
     const { token, user, profile } = response.data;
+    // Normalise role to lowercase so comparisons work regardless of backend casing
+    const role = (profile.role || '').toLowerCase();
     await AsyncStorage.multiSet([
         ['access_token', token],
-        ['user', JSON.stringify({ role: profile.role, user_id: user.id, username: user.username })],
+        ['user', JSON.stringify({ role, user_id: user.id, username: user.username })],
     ]);
-    return { role: profile.role, user_id: user.id, username: user.username };
+    return { role, user_id: user.id, username: user.username };
 }
 
 /** Remove all auth tokens from storage. */
