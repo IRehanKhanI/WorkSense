@@ -46,7 +46,7 @@ const AdminDashboard = () => {
         const fetchDashboardData = async () => {
             try {
                 // Try fetching real metrics from a comprehensive operations endpoint
-                const res = await apiClient.get('/operations/tasks/');
+                const res = await apiClient.get('/tasks/');
                 setIsConnected(true);
                 // Try updating some fields with real data if API returns successfully
                 if (res.data && res.data.length > 0) {

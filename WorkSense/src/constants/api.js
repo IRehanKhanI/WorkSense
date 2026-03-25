@@ -1,11 +1,12 @@
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-// Update BASE_URL to your server's IP / hostname.
-// For production builds use an environment variable or expo-constants:
-//   import Constants from 'expo-constants';
-//   export const BASE_URL = Constants.expoConfig?.extra?.apiUrl ?? 'http://192.168.137.1:8000/api';
-export const BASE_URL = "http://192.168.137.1:8000/api";
+import { Platform } from 'react-native';
+
+// Dynamically use the correct IP for Django's server.
+// If you are testing on a physical device on your same Wi-Fi, you MUST run Django via:
+// python manage.py runserver 0.0.0.0:8000
+export const BASE_URL = "http://192.168.137.1:8080/api";
 
 const apiClient = axios.create({
   baseURL: BASE_URL,

@@ -10,23 +10,29 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os
 from datetime import timedelta
 from pathlib import Path
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Load environment variables from .env file
+load_dotenv(BASE_DIR / '.env')
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-ut4m^5nq@_9y3ye@q&4(v$qzws+*v8tb)6)mzp@)7va-h8-=ay'
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-ut4m^5nq@_9y3ye@q&4(v$qzws+*v8tb)6)mzp@)7va-h8-=ay')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = ['*']  # Restrict to specific hosts in production
+# Parse ALLOWED_HOSTS from .env
+allowed_hosts_env = os.getenv('ALLOWED_HOSTS', '*')
+ALLOWED_HOSTS = allowed_hosts_env.split(',') if allowed_hosts_env else ['*']
 
 
 # Application definition
@@ -172,13 +178,19 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # CORS Configuration
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://localhost:8000",
-    "http://127.0.0.1:3000",
-    "http://127.0.0.1:8000",
-    "http://192.168.1.100:8081",  # Expo development
-]
+# Get CORS origins from .env or use defaults
+cors_env = os.getenv('CORS_ALLOWED_ORIGINS')
+if cors_env:
+    # Will strip any quotes the user might have put inside the .env file
+    CORS_ALLOWED_ORIGINS = [origin.strip().strip('"\'') for origin in cors_env.split(',')]
+else:
+    CORS_ALLOWED_ORIGINS = [
+        "http://localhost:3000",
+        "http://localhost:8000",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:8000",
+        "http://192.168.137.1:8081",  # Expo development
+    ]
 CORS_ALLOW_CREDENTIALS = True
 
 # CORS settings (restrict to specific origins in production)

@@ -6,12 +6,12 @@ import { StyleSheet, View } from 'react-native';
 
 export default function WorkerLayout() {
     return (
-        <Tabs 
-            screenOptions={{ 
-                headerShown: false, 
-                tabBarActiveTintColor: COLORS.secondary, 
-                tabBarInactiveTintColor: COLORS.textSecondary, 
-                tabBarStyle: { 
+        <Tabs
+            screenOptions={{
+                headerShown: false,
+                tabBarActiveTintColor: COLORS.secondary,
+                tabBarInactiveTintColor: COLORS.textSecondary,
+                tabBarStyle: {
                     position: 'absolute',
                     backgroundColor: 'transparent',
                     borderTopWidth: 0,
@@ -54,6 +54,32 @@ export default function WorkerLayout() {
                 options={{
                     title: 'Map',
                     tabBarIcon: ({ color }) => <Ionicons name="navigate" size={24} color={color} />
+                }}
+            />
+            <Tabs.Screen
+                name="proofs"
+                options={{
+                    title: 'Proofs',
+                    tabBarIcon: ({ color }) => <Ionicons name="camera-reverse" size={24} color={color} />
+                }}
+            />
+            <Tabs.Screen
+                name="reports"
+                options={{
+                    title: 'Reports',
+                    tabBarIcon: ({ color }) => <Ionicons name="document-text" size={24} color={color} />
+                }}
+            />
+            <Tabs.Screen
+                name="submit-proof"
+                options={{
+                    href: null,
+                }}
+            />
+            <Tabs.Screen
+                name="task-completion-report"
+                options={{
+                    href: null,
                 }}
             />
         </Tabs>

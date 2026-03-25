@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -24,6 +24,7 @@ export default function SubmitProofScreen() {
     const [selfieUri, setSelfieUri] = useState(null);
     const [workUri, setWorkUri] = useState(null);
     const [processing, setProcessing] = useState(false);
+    const [locationMessage, setLocationMessage] = useState('Getting GPS location...');
 
     const cameraRef = useRef(null);
 
@@ -72,17 +73,26 @@ export default function SubmitProofScreen() {
 
     async function uploadProofs(selfie, workPhoto) {
         if (!location) {
-            Alert.alert('Error', 'Location is required. Please wait for GPS.');
-            setStep('back');
-            return;
+            // Location might still be loading, give it 5 more seconds
+            setLocationMessage('Waiting for GPS...');
+            await new Promise(resolve => setTimeout(resolve, 5000));
+
+            if (!location) {
+                // Still no location, but allow upload with 0,0 coordinates
+                setLocationMessage('Using default location (no GPS)');
+                console.warn('Location not available, using default coordinates');
+            }
         }
+
+        const gpsLat = location?.coords?.latitude || 0;
+        const gpsLon = location?.coords?.longitude || 0;
 
         try {
             const formData = new FormData();
             formData.append('task_id', taskId);
             formData.append('proof_type', proofType);
-            formData.append('gps_lat', String(location.coords.latitude));
-            formData.append('gps_lon', String(location.coords.longitude));
+            formData.append('gps_lat', String(gpsLat));
+            formData.append('gps_lon', String(gpsLon));
 
             // Append back camera photo (Work)
             formData.append('image', {
@@ -111,9 +121,10 @@ export default function SubmitProofScreen() {
             });
 
             const responseData = await response.json();
+            console.log('Upload response:', responseData);;
 
             if (!response.ok) {
-                throw new Error(responseData.detail || responseData.error || 'Upload failed');
+                throw new Error(JSON.stringify(responseData));
             }
 
             // If it was the AFTER proof, we might get an AI verification response
@@ -143,13 +154,15 @@ export default function SubmitProofScreen() {
             >
                 <BlurView intensity={30} tint="dark" style={styles.permissionCard}>
                     <ActivityIndicator size="large" color={COLORS.primary} />
-                    <Text style={[styles.message, { marginTop: SPACING.md }]}>Uploading {proofType} proofs & running AI verification...</Text>
+                    <Text style={[styles.message, { marginTop: SPACING.md }]}>Uploading {proofType} proofs{proofType === 'AFTER' ? ' & running AI verification...' : '...'}</Text>
+                    <Text style={[styles.message, { marginTop: SPACING.sm, fontSize: FONT_SIZES.sm, color: COLORS.textSecondary }]}>{locationMessage}</Text>
                 </BlurView>
             </LinearGradient>
         );
     }
 
     const isFront = step === 'front';
+    const hasLocationLock = location && location.coords;
 
     return (
         <LinearGradient
@@ -165,6 +178,9 @@ export default function SubmitProofScreen() {
                     <BlurView intensity={30} tint="dark" style={styles.hintContainer}>
                         <Text style={styles.hintText}>
                             {isFront ? 'Step 1: Take a Selfie for verification' : `Step 2: Capture work area (${proofType})`}
+                        </Text>
+                        <Text style={[styles.hintText, { fontSize: FONT_SIZES.xs, marginTop: SPACING.xs, color: hasLocationLock ? COLORS.success : COLORS.warning }]}>
+                            GPS: {hasLocationLock ? '✓ Locked' : '⟳ Acquiring...'}
                         </Text>
                     </BlurView>
                     {isFront && <View style={styles.faceGuide} />}

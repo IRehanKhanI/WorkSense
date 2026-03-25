@@ -1,12 +1,12 @@
 from rest_framework import serializers
-from .models import Task, TaskProof, TaskSLA
+from .models import Task, TaskProof, TaskSLA, TaskCompletionReport
 
 
 class TaskProofSerializer(serializers.ModelSerializer):
     class Meta:
         model = TaskProof
-        fields = ['id', 'proof_type', 'image', 'worker_selfie', 'gps_lat', 'gps_lon', 'submitted_at', 'watermark_text']
-        read_only_fields = ['id', 'submitted_at']
+        fields = ['id', 'proof_type', 'image', 'worker_selfie', 'gps_lat', 'gps_lon', 'submitted_at', 'watermark_text', 'image_quality_score', 'image_blur_detection', 'image_contrast_level']
+        read_only_fields = ['id', 'submitted_at', 'image_quality_score', 'image_blur_detection', 'image_contrast_level']
 
 
 class TaskSLASerializer(serializers.ModelSerializer):
@@ -59,7 +59,7 @@ class TaskProofUploadSerializer(serializers.Serializer):
     worker_selfie = serializers.ImageField(required=False)
     gps_lat = serializers.FloatField()
     gps_lon = serializers.FloatField()
-    proof_type = serializers.ChoiceField(choices=['BEFORE', 'AFTER'])
+    proof_type = serializers.ChoiceField(choices=['BEFORE', 'DURING', 'AFTER'])
     task_id = serializers.CharField()
     
     def validate_task_id(self, value):
@@ -76,3 +76,50 @@ class VerificationResultSerializer(serializers.ModelSerializer):
     class Meta:
         model = VerificationResult
         fields = '__all__'
+
+
+class TaskCompletionReportSerializer(serializers.ModelSerializer):
+    """Serializer for task completion reports with 5-category analysis"""
+    task_id = serializers.CharField(source='task.task_id', read_only=True)
+    worker_username = serializers.CharField(source='worker.username', read_only=True)
+    
+    class Meta:
+        model = TaskCompletionReport
+        fields = [
+            'id',
+            'task_id',
+            'worker_username',
+            'time_analysis_text',
+            'location_analysis_text',
+            'quality_analysis_text',
+            'sla_analysis_text',
+            'recommendations_text',
+            'actual_duration_minutes',
+            'sla_threshold_minutes',
+            'gps_distance_meters',
+            'image_similarity_percentage',
+            'before_image_quality_score',
+            'after_image_quality_score',
+            'sla_met',
+            'comparison_datetime',
+            'created_at'
+        ]
+        read_only_fields = [
+            'id',
+            'task_id',
+            'worker_username',
+            'time_analysis_text',
+            'location_analysis_text',
+            'quality_analysis_text',
+            'sla_analysis_text',
+            'recommendations_text',
+            'actual_duration_minutes',
+            'sla_threshold_minutes',
+            'gps_distance_meters',
+            'image_similarity_percentage',
+            'before_image_quality_score',
+            'after_image_quality_score',
+            'sla_met',
+            'comparison_datetime',
+            'created_at'
+        ]

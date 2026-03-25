@@ -25,7 +25,7 @@ export default function AttendanceScreen() {
 
     async function fetchStats() {
         try {
-            const res = await apiClient.get('/attendance/statistics/');
+            const res = await apiClient.get('/statistics/');
             setStats(res.data);
         } catch {
             // Provide dummy data when disconnected
@@ -40,7 +40,7 @@ export default function AttendanceScreen() {
     async function fetchTodayRecord() {
         try {
             const today = new Date().toISOString().split('T')[0];
-            const res = await apiClient.get('/attendance/', { params: { date: today } });
+            const res = await apiClient.get('/', { params: { date: today } });
             const results = res.data.results ?? res.data;
             if (results.length > 0) {
                 setRecord(results[0]);
@@ -88,7 +88,7 @@ export default function AttendanceScreen() {
                 });
             }
 
-            const res = await apiClient.post('/attendance/clock_in/', formData, {
+            const res = await apiClient.post('/clock_in/', formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data'
                 }
@@ -109,7 +109,7 @@ export default function AttendanceScreen() {
                 latitude: location?.coords?.latitude ?? 12.9716,
                 longitude: location?.coords?.longitude ?? 77.5946,
             };
-            const res = await apiClient.post('/attendance/clock_out/', body);
+            const res = await apiClient.post('/clock_out/', body);
             setRecord(res.data);
             Alert.alert('Clocked Out', 'Have a great rest of your day!');
         } catch (err) {

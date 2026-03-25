@@ -2,12 +2,13 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes, parser_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.utils import timezone
 from datetime import datetime
 
-from .models import Task, TaskProof, TaskSLA, VerificationResult, CleaningMetrics
-from .serializers import TaskSerializer, TaskProofSerializer, TaskProofUploadSerializer, TaskSLASerializer, VerificationResultSerializer
+from .models import Task, TaskProof, TaskSLA, VerificationResult, CleaningMetrics, TaskCompletionReport
+from .serializers import TaskSerializer, TaskProofSerializer, TaskProofUploadSerializer, TaskSLASerializer, VerificationResultSerializer, TaskCompletionReportSerializer
+from . import image_analysis
 
 
 class TaskViewSet(viewsets.ModelViewSet):
@@ -15,7 +16,7 @@ class TaskViewSet(viewsets.ModelViewSet):
     queryset = Task.objects.all()
     serializer_class = TaskSerializer
     permission_classes = [IsAuthenticated]
-    parser_classes = (MultiPartParser, FormParser)
+    parser_classes = (JSONParser, MultiPartParser, FormParser)
     
     def get_queryset(self):
         user = self.request.user
@@ -30,16 +31,24 @@ class TaskViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
     
-    @action(detail=False, methods=['post'], permission_classes=[])
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
     def create_task(self, request):
-        """Create a new task (admin only)"""
-        if not hasattr(request.user, 'profile') or request.user.profile.role != 'ADMIN':
-            return Response(
-                {'error': 'Admin access required'},
-                status=status.HTTP_403_FORBIDDEN
-            )
+        """Create a new task (admins assign to anyone, workers self-assign)"""
+        data = request.data.copy()
+        user_role = getattr(request.user, 'profile', None) and request.user.profile.role
         
-        serializer = self.get_serializer(data=request.data)
+        # If worker, force the task to be assigned to themselves
+        if user_role != 'ADMIN':
+            data['assigned_to'] = request.user.id
+            
+        # Ensure task_id and assigned_date are present before validation
+        if 'task_id' not in data:
+            import uuid
+            data['task_id'] = f"TSK-{str(uuid.uuid4())[:8].upper()}"
+        if 'assigned_date' not in data:
+            data['assigned_date'] = str(timezone.now().date())
+            
+        serializer = self.get_serializer(data=data)
         if serializer.is_valid():
             serializer.save(assigned_by=request.user)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -88,7 +97,7 @@ class TaskProofViewSet(viewsets.ViewSet):
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        if proof_type == 'AFTER':
+        if proof_type in ['DURING', 'AFTER']:
             # Need a BEFORE proof first
             if not task.proofs.filter(proof_type='BEFORE').exists():
                 return Response(
@@ -100,6 +109,9 @@ class TaskProofViewSet(viewsets.ViewSet):
         now = timezone.now()
         watermark_text = f"{now.strftime('%Y-%m-%d %H:%M:%S')}, {gps_lat:.4f}°, {gps_lon:.4f}°"
         
+        # Calculate image quality metrics
+        quality_metrics = image_analysis.calculate_image_quality(image)
+        
         # Create or update TaskProof
         proof, created = TaskProof.objects.update_or_create(
             task=task,
@@ -109,13 +121,16 @@ class TaskProofViewSet(viewsets.ViewSet):
                 'worker_selfie': worker_selfie,
                 'gps_lat': gps_lat,
                 'gps_lon': gps_lon,
-                'watermark_text': watermark_text
+                'watermark_text': watermark_text,
+                'image_quality_score': quality_metrics.get('quality_score', 0),
+                'image_blur_detection': quality_metrics.get('blur_detected', False),
+                'image_contrast_level': quality_metrics.get('contrast_level', 0.0)
             }
         )
         
         verification_response = None
         
-        if proof_type == 'BEFORE':
+        if proof_type == 'BEFORE' or proof_type == 'DURING':
             task.status = 'IN_PROGRESS'
             task.save()
         elif proof_type == 'AFTER':
@@ -142,7 +157,8 @@ class TaskProofViewSet(viewsets.ViewSet):
                     comparison = detector.compare_before_after(
                         before_proof.image.path,
                         proof.image.path,
-                        threshold=0.6
+                        threshold=0.6,
+                        task=task
                     )
                     
                     if comparison.get('success'):
@@ -173,6 +189,13 @@ class TaskProofViewSet(viewsets.ViewSet):
             # Update metrics
             metrics, _ = CleaningMetrics.objects.get_or_create(worker=task.assigned_to)
             metrics.calculate_metrics()
+            
+            # Generate completion report (5-category analysis)
+            try:
+                report_response = generate_completion_report(task, before_proof, proof)
+                verification_response['completion_report'] = report_response
+            except Exception as e:
+                print(f"Error generating completion report: {str(e)}")
             
             verification_response = verification_data
         
@@ -250,11 +273,10 @@ class TaskSLAViewSet(viewsets.ViewSet):
 from django.conf import settings
 
 def get_detector():
-    """Get the ViT cleaning detector instance"""
+    """Get the Gemini API verification instance"""
     try:
-        from ml_models.models.inference import CleaningDetector
-        model_path = getattr(settings, 'CLEANING_MODEL_PATH', 'ml_models/models/vit_cleaning_detector/best_model')
-        return CleaningDetector(model_path)
+        from .gemini_verifier import GeminiDetector
+        return GeminiDetector()
     except Exception as e:
         print(f"Error loading detector: {e}")
         return None
@@ -397,7 +419,8 @@ def upload_after_image_and_verify(request):
                 comparison = detector.compare_before_after(
                     before_path,
                     after_path,
-                    threshold=confidence_threshold
+                    threshold=confidence_threshold,
+                    task=task
                 )
                 
                 if comparison.get('success'):
@@ -563,3 +586,108 @@ def get_worker_metrics(request):
             {'error': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+
+def generate_completion_report(task, before_proof, after_proof):
+    """
+    Generate a 5-category completion report comparing before/after images.
+    
+    This is called automatically when AFTER proof is uploaded.
+    Categories:
+    1. Time Analysis
+    2. Location
+    3. Task Quality
+    4. SLA Performance
+    5. Recommendations
+    """
+    try:
+        # Get SLA info
+        sla = TaskSLA.objects.filter(task=task).first()
+        
+        # Calculate image similarity
+        similarity_result = image_analysis.compare_images_similarity(
+            before_proof.image.path,
+            after_proof.image.path
+        )
+        
+        # Validate GPS proximity
+        gps_result = image_analysis.validate_gps_proximity(
+            before_proof.gps_lat,
+            before_proof.gps_lon,
+            after_proof.gps_lat,
+            after_proof.gps_lon,
+            task_type=task.task_type
+        )
+        
+        # Get verification result if available
+        verification = VerificationResult.objects.filter(task=task).first()
+        
+        # Prepare metrics dict for report generation
+        metrics = {
+            'similarity_percentage': similarity_result.get('similarity_percentage', 0),
+            'gps_validation': gps_result
+        }
+        
+        # Generate 5-category report text
+        report_text = image_analysis.generate_completion_report_text(
+            task=task,
+            before_proof=before_proof,
+            after_proof=after_proof,
+            metrics=metrics,
+            sla=sla,
+            verification_result=verification
+        )
+        
+        # Create or update TaskCompletionReport
+        report = TaskCompletionReport.objects.create(
+            task=task,
+            worker=task.assigned_to,
+            time_analysis_text=report_text['time_analysis'],
+            location_analysis_text=report_text['location_analysis'],
+            quality_analysis_text=report_text['quality_analysis'],
+            sla_analysis_text=report_text['sla_analysis'],
+            recommendations_text=report_text['recommendations'],
+            actual_duration_minutes=sla.duration_minutes if sla else 0,
+            sla_threshold_minutes=sla.sla_threshold_minutes if sla else 0,
+            gps_distance_meters=gps_result.get('distance_meters', 0.0),
+            image_similarity_percentage=similarity_result.get('similarity_percentage', 0),
+            before_image_quality_score=before_proof.image_quality_score,
+            after_image_quality_score=after_proof.image_quality_score,
+            sla_met=sla.sla_met if sla else False
+        )
+        
+        return TaskCompletionReportSerializer(report).data
+        
+    except Exception as e:
+        print(f"Error in generate_completion_report: {str(e)}")
+        raise
+
+
+class TaskCompletionReportViewSet(viewsets.ViewSet):
+    """API for task completion reports"""
+    permission_classes = [IsAuthenticated]
+    
+    @action(detail=False, methods=['get'])
+    def get_report(self, request):
+        """Get completion report for a task"""
+        task_id = request.query_params.get('task_id')
+        if not task_id:
+            return Response({'error': 'task_id required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            task = Task.objects.get(task_id=task_id)
+            report = TaskCompletionReport.objects.get(task=task)
+        except Task.DoesNotExist:
+            return Response({'error': 'Task not found'}, status=status.HTTP_404_NOT_FOUND)
+        except TaskCompletionReport.DoesNotExist:
+            return Response({'error': 'Report not generated yet'}, status=status.HTTP_404_NOT_FOUND)
+        
+        serializer = TaskCompletionReportSerializer(report)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    @action(detail=False, methods=['get'])
+    def my_reports(self, request):
+        """Get all completion reports for current worker"""
+        reports = TaskCompletionReport.objects.filter(worker=request.user).order_by('-created_at')
+        serializer = TaskCompletionReportSerializer(reports, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)

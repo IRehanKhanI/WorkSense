@@ -49,6 +49,7 @@ class TaskProof(models.Model):
     """Before/After photos for task proof of completion"""
     PROOF_TYPE_CHOICES = [
         ('BEFORE', 'Before'),
+        ('DURING', 'During'),
         ('AFTER', 'After'),
     ]
     
@@ -62,6 +63,11 @@ class TaskProof(models.Model):
     
     submitted_at = models.DateTimeField(auto_now_add=True)
     watermark_text = models.CharField(max_length=255)
+    
+    # Image quality metrics
+    image_quality_score = models.IntegerField(default=0, help_text="Image quality score 0-100")
+    image_blur_detection = models.BooleanField(default=False, help_text="True if image is blurry")
+    image_contrast_level = models.FloatField(default=0.0, help_text="Image contrast level")
     
     created_at = models.DateTimeField(auto_now_add=True)
     
@@ -173,3 +179,40 @@ class CleaningMetrics(models.Model):
     
     def __str__(self):
         return f"Metrics for {self.worker.username}"
+
+
+class TaskCompletionReport(models.Model):
+    """Auto-generated completion report with 5-category analysis for completed tasks"""
+    task = models.OneToOneField(Task, on_delete=models.CASCADE, related_name='completion_report')
+    worker = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='completion_reports')
+    
+    # 5-Category Analysis
+    time_analysis_text = models.TextField(help_text="Time Analysis: actual duration vs SLA threshold")
+    location_analysis_text = models.TextField(help_text="Location: GPS validation and distance between photos")
+    quality_analysis_text = models.TextField(help_text="Task Quality: image quality scores and similarity percentage")
+    sla_analysis_text = models.TextField(help_text="SLA Performance: met/not met and performance percentage")
+    recommendations_text = models.TextField(help_text="Recommendations: suggestions based on metrics")
+    
+    # Metrics
+    actual_duration_minutes = models.IntegerField(help_text="Actual time taken to complete task")
+    sla_threshold_minutes = models.IntegerField(help_text="Expected time for task completion")
+    gps_distance_meters = models.FloatField(help_text="Distance between before and after GPS locations")
+    image_similarity_percentage = models.FloatField(help_text="Visual similarity score 0-100")
+    before_image_quality_score = models.IntegerField(default=0)
+    after_image_quality_score = models.IntegerField(default=0)
+    sla_met = models.BooleanField(default=False)
+    
+    # Timestamps
+    comparison_datetime = models.DateTimeField(auto_now_add=True, help_text="When comparison was performed")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['task', 'created_at']),
+            models.Index(fields=['worker', 'created_at']),
+        ]
+    
+    def __str__(self):
+        return f"Completion Report for {self.task.task_id}"

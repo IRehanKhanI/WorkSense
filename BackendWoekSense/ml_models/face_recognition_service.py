@@ -1,18 +1,17 @@
 import cv2
 import numpy as np
 import logging
+from deepface import DeepFace
+import tempfile
+import os
 
 logger = logging.getLogger(__name__)
 
-# Load OpenCV's pre-trained Haar Cascade for Face Detection
-face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-
-def verify_face_in_image(image_bytes):
+def verify_face_in_image(image_bytes, reference_image_path=None):
     """
-    Takes an uploaded image file (bytes) and uses an AI model (Haar Cascades) 
-    to detect if a human face is present.
-    In a full production system, this could be swapped out with a DeepFace or Facenet 
-    model to verify the identity of the specific user.
+    Takes an uploaded image file (bytes) and a reference image path if available.
+    Verifies if a face is in the image, and then cross-checks if it matches
+    the reference image utilizing DeepFace.
     """
     try:
         # Convert image bytes to numpy array
@@ -23,26 +22,44 @@ def verify_face_in_image(image_bytes):
             logger.error("Failed to decode image.")
             return False, "Could not decode uploaded image."
 
-        # Convert to grayscale for face detection AI
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        # To use DeepFace easily we create a temp file for the input image
+        with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as temp_img:
+            cv2.imwrite(temp_img.name, img)
+            input_img_path = temp_img.name
 
-        # Detect faces in the image
-        faces = face_cascade.detectMultiScale(
-            gray, 
-            scaleFactor=1.1, 
-            minNeighbors=5, 
-            minSize=(30, 30)
-        )
+        try:
+            if reference_image_path and os.path.exists(reference_image_path):
+                # Perform 1:1 facial verification
+                result = DeepFace.verify(
+                    img1_path=input_img_path,
+                    img2_path=reference_image_path,
+                    model_name="VGG-Face",
+                    enforce_detection=True
+                )
+                
+                if result.get("verified", False):
+                    msg = "Face verified successfully against reference profile."
+                    return True, msg
+                else:
+                    return False, "Face detected does not match the registered profile image."
+            else:
+                # No reference image, just run face detection to see if ANY face is present
+                faces = DeepFace.extract_faces(img_path=input_img_path, enforce_detection=False)
+                
+                # count if true faces found with high enough confidence
+                valid_faces = [f for f in faces if f.get('confidence', 0) > 0.8]
+                if len(valid_faces) == 0:
+                     return False, "No face detected in the image."
+                elif len(valid_faces) > 1:
+                     return False, f"Multiple faces ({len(valid_faces)}) detected. Ensure only one person is in the frame."
+                return True, "Face detected, but no reference profile image available to compare."
+                
+        finally:
+            if os.path.exists(input_img_path):
+                os.remove(input_img_path)
 
-        face_count = len(faces)
-        
-        if face_count == 0:
-            return False, "No face detected in the image."
-        elif face_count > 1:
-            return False, f"Multiple faces ({face_count}) detected. Ensure only one person is in the frame."
-            
-        return True, "Face verified successfully."
-        
     except Exception as e:
-        logger.error(f"Error during face verification: {str(e)}")
-        return False, f"Error processing image: {str(e)}"
+        logger.error(f"Error during face verification with DeepFace: {str(e)}")
+        # DeepFace raises exceptions if no face is detected when enforce_detection=True
+        if "Face could not be detected" in str(e):
+            return False, "No face detected in the image."

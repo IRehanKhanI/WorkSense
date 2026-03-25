@@ -64,9 +64,14 @@ export default function TaskCard({ task }) {
                     </TouchableOpacity>
                 )}
                 {task?.status === 'IN_PROGRESS' && (
-                    <TouchableOpacity style={styles.proofBtn} onPress={() => handleProof('AFTER')}>
-                        <Text style={styles.proofBtnText}>After Proof</Text>
-                    </TouchableOpacity>
+                    <View style={{ flexDirection: 'row', gap: SPACING.xs, marginLeft: 'auto' }}>
+                        <TouchableOpacity style={styles.proofBtn} onPress={() => handleProof('DURING')}>
+                            <Text style={styles.proofBtnText}>During Proof</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.proofBtn} onPress={() => handleProof('AFTER')}>
+                            <Text style={styles.proofBtnText}>After Proof</Text>
+                        </TouchableOpacity>
+                    </View>
                 )}
                 {!!task?.due_date && (
                     <Text style={styles.due}>

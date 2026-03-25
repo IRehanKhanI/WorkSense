@@ -100,7 +100,7 @@ export default function LoginScreen() {
 
                     <View style={styles.registerLinkContainer}>
                         <Text style={styles.linkPrompt}>New to WorkSense? </Text>
-                        <Link href='/(auth)/register' style={styles.linkText}>Create an account</Link>
+                        <Link href='/register' style={styles.linkText}>Create an account</Link>
                     </View>
 
                 </ScrollView>

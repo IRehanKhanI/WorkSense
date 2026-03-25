@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Task, TaskProof, TaskSLA, CleaningMetrics, VerificationResult
+from .models import Task, TaskProof, TaskSLA, CleaningMetrics, VerificationResult, TaskCompletionReport
 
 
 @admin.register(Task)
@@ -72,4 +72,40 @@ class CleaningMetricsAdmin(admin.ModelAdmin):
             'fields': ('last_task_date', 'updated_at'),
             'classes': ('collapse',)
         }),
+    )
+
+
+@admin.register(TaskCompletionReport)
+class TaskCompletionReportAdmin(admin.ModelAdmin):
+    list_display = ['task', 'worker', 'sla_met', 'actual_duration_minutes', 'sla_threshold_minutes', 'image_similarity_percentage', 'created_at']
+    list_filter = ['sla_met', 'created_at']
+    search_fields = ['task__task_id', 'worker__username']
+    readonly_fields = ['comparison_datetime', 'created_at', 'updated_at']
+    
+    fieldsets = (
+        ('Task & Worker', {'fields': ('task', 'worker')}),
+        ('5-Category Analysis', {
+            'fields': ('time_analysis_text', 'location_analysis_text', 'quality_analysis_text', 'sla_analysis_text', 'recommendations_text'),
+            'classes': ('wide',)
+        }),
+        ('Metrics', {
+            'fields': ('actual_duration_minutes', 'sla_threshold_minutes', 'gps_distance_meters', 'image_similarity_percentage', 'before_image_quality_score', 'after_image_quality_score', 'sla_met')
+        }),
+        ('Timestamps', {'fields': ('comparison_datetime', 'created_at', 'updated_at'), 'classes': ('collapse',)}),
+    )
+
+
+@admin.register(VerificationResult)
+class VerificationResultAdmin(admin.ModelAdmin):
+    list_display = ['task', 'verification_status', 'cleanup_confidence', 'created_at']
+    list_filter = ['verification_status', 'created_at']
+    search_fields = ['task__task_id']
+    readonly_fields = ['created_at', 'updated_at']
+    
+    fieldsets = (
+        ('Task', {'fields': ('task',)}),
+        ('Verification', {'fields': ('verification_status', 'cleanup_confidence', 'recommendation_message')}),
+        ('Configuration', {'fields': ('model_version', 'confidence_threshold'), 'classes': ('collapse',)}),
+        ('Error Handling', {'fields': ('error_message',), 'classes': ('collapse',)}),
+        ('Timestamps', {'fields': ('created_at', 'updated_at'), 'classes': ('collapse',)}),
     )

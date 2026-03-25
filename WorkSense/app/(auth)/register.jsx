@@ -135,7 +135,7 @@ export default function RegisterScreen() {
 
                     <View style={styles.loginLinkContainer}>
                         <Text style={styles.linkPrompt}>Already have an account? </Text>
-                        <Link href='/(auth)/login' style={styles.linkText}>Sign In here</Link>
+                        <Link href='/login' style={styles.linkText}>Sign In here</Link>
                     </View>
 
                 </ScrollView>

@@ -8,7 +8,6 @@ from django.db.models import Q
 from .models import WorkZone, AttendanceLog, AttendanceRecord
 from .serializers import WorkZoneSerializer, AttendanceLogSerializer, ClockInSerializer, AttendanceRecordSerializer
 from .utils import validate_clock_in
-from ml_models.face_recognition_service import verify_face_in_image
 
 
 class WorkZoneViewSet(viewsets.ModelViewSet):
@@ -68,12 +67,22 @@ class AttendanceViewSet(viewsets.ViewSet):
             # Seek back to 0 so it can still be saved correctly in Django models later
             selfie.seek(0)
             
-            is_valid_face, message = verify_face_in_image(selfie_bytes)
-            # For development/testing, we won't block the request if face recognition fails
-            if not is_valid_face:
+            # Retrieve the user's reference profile image, if available
+            reference_image_path = None
+            if hasattr(request.user, 'profile') and request.user.profile.profile_image:
+                reference_image_path = request.user.profile.profile_image.path
+            
+            try:
+                from ml_models.face_recognition_service import verify_face_in_image
+                is_valid_face, message = verify_face_in_image(selfie_bytes, reference_image_path)
+                # For development/testing, we won't block the request if face recognition fails
+                if not is_valid_face:
+                    face_verified = False
+                else:
+                    face_verified = True
+            except ImportError as e:
+                print(f"Face recognition module not available: {e}")
                 face_verified = False
-            else:
-                face_verified = True
         
         # Validate clock-in
         validation_result = validate_clock_in(

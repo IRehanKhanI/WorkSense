@@ -52,10 +52,13 @@ class RegisterSerializer(serializers.Serializer):
     
     def create(self, validated_data):
         # Extract serialized fields
+        import uuid
         username = validated_data.pop('username')
         email = validated_data.pop('email')
         password = validated_data.pop('password')
-        phone_device_id = validated_data.pop('phone_device_id', 'web_device')
+        phone_device_id = validated_data.pop('phone_device_id', '')
+        if not phone_device_id or phone_device_id == 'web_device':
+            phone_device_id = f'web_device_{uuid.uuid4().hex}'
         role = validated_data.pop('role', 'WORKER')
         first_name = validated_data.pop('first_name', '')
         last_name = validated_data.pop('last_name', '')

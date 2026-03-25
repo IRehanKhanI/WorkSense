@@ -16,6 +16,7 @@ class UserProfile(models.Model):
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='WORKER')
     phone_device_id = models.CharField(max_length=255, unique=True)
     is_device_registered = models.BooleanField(default=False)
+    profile_image = models.ImageField(upload_to='profile_images/', null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

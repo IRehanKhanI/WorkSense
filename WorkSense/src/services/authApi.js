@@ -8,7 +8,7 @@ import axios from "axios";
  * Returns the decoded user payload { role, user_id, username }.
  */
 export async function login(username, password) {
-  const response = await axios.post(`${BASE_URL}/auth/login/`, {
+  const response = await apiClient.post(`/auth/login/`, {
     username,
     password,
   });
@@ -37,7 +37,7 @@ export async function register(username, email, password, deviceId, role) {
   if (deviceId) {
     payload.phone_device_id = deviceId;
   }
-  const response = await axios.post(`${BASE_URL}/auth/register/`, payload);
+  const response = await apiClient.post(`/auth/register/`, payload);
 
   const { token, user, profile } = response.data;
   await AsyncStorage.multiSet([

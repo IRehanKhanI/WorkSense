@@ -4,6 +4,7 @@ import {
     ActivityIndicator, TouchableOpacity, Alert, ScrollView, Dimensions
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { Wifi, WifiOff } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -39,7 +40,7 @@ export default function WorkerDashboard() {
 
     async function fetchStats() {
         try {
-            const res = await apiClient.get('/attendance/statistics/');
+            const res = await apiClient.get('/statistics/');
             setAttendanceStats(res.data);
         } catch (error) {
             console.warn("Failed to fetch attendance stats, using dummy data", error);
@@ -56,7 +57,7 @@ export default function WorkerDashboard() {
     async function fetchTasks() {
         setLoading(true);
         try {
-            const res = await apiClient.get('/operations/tasks/');
+            const res = await apiClient.get('/tasks/');
             const fetchedData = res.data?.results ?? res.data;
             setTasks(Array.isArray(fetchedData) ? fetchedData : []);
             setIsConnected(true);
@@ -67,14 +68,14 @@ export default function WorkerDashboard() {
             } else {
                 setIsConnected(true);
             }
-            
+
             // Set dummy fallback data so app is not completely empty
             setTasks([
                 { id: '1', task_id: 'TSK-100', title: 'Clean Main Street', description: 'Sweep from blocks A to D', status: 'PENDING', priority: 'high', due_date: new Date().toISOString() },
                 { id: '2', task_id: 'TSK-101', title: 'Empty public bins', description: 'Zone 4 garbage bins', status: 'IN_PROGRESS', priority: 'medium', due_date: new Date().toISOString() },
                 { id: '3', task_id: 'TSK-102', title: 'Water plant maintenance', description: 'Fix pipe leakage', status: 'COMPLETED', priority: 'urgent', due_date: new Date().toISOString() }
             ]);
-            
+
             // Don't show full alert, just a brief toast or silent fallback
             // Alert.alert('Offline Mode', 'Failed to connect. Showing cached/dummy tasks.');
         } finally {
@@ -84,24 +85,26 @@ export default function WorkerDashboard() {
 
     async function handleLogout() {
         await logout();
-        router.replace('/(auth)/login');
+        router.replace('/login');
     }
 
-    const completedCount = tasks.filter(t => t.status === 'Completed').length;
-    const pendingCount = tasks.filter(t => t.status !== 'Completed').length;
+    const presentCount = attendanceStats?.accepted_logs || 0;
+    const rejectedCount = attendanceStats?.rejected_logs || 0;
+    const pendingCount = tasks.filter(t => t.status === 'PENDING').length;
+    const completedCount = tasks.filter(t => t.status === 'COMPLETED').length;
 
     const pieData = [
         {
-            name: 'Completed',
-            population: completedCount,
+            name: 'Present',
+            population: presentCount,
             color: '#8B5CF6', // Purple
             legendFontColor: '#E2E8F0',
             legendFontSize: 12,
         },
         {
-            name: 'Pending',
-            population: pendingCount,
-            color: '#0EA5E9', // Cyan
+            name: 'Rejected/Issues',
+            population: rejectedCount,
+            color: '#FF1493', // Pink/Red
             legendFontColor: '#94A3B8',
             legendFontSize: 12,
         },
@@ -124,8 +127,8 @@ export default function WorkerDashboard() {
                     <View style={styles.statsRow}>
                         <View style={styles.statBox}>
                             <Text style={styles.statValue}>
-                                {attendanceStats.has_clocked_in_today 
-                                    ? new Date(attendanceStats.today_clock_in).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+                                {attendanceStats.has_clocked_in_today
+                                    ? new Date(attendanceStats.today_clock_in).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                                     : '--:--'}
                             </Text>
                             <Text style={styles.statLabel}>Clock In</Text>
@@ -145,18 +148,22 @@ export default function WorkerDashboard() {
             </BlurView>
 
             <BlurView intensity={30} tint="dark" style={styles.chartContainer}>
-                <Text style={styles.chartTitle}>Task Overview</Text>
-                <PieChart
-                    data={pieData}
-                    width={Dimensions.get("window").width - SPACING.md * 2}
-                    height={150}
-                    chartConfig={{
-                        color: (opacity = 1) => `rgba(139, 92, 246, ${opacity})`,
-                    }}
-                    accessor={"population"}
-                    backgroundColor={"transparent"}
-                    paddingLeft={"15"}
-                />
+                <Text style={styles.chartTitle}>Attendance Overview</Text>
+                {pieData.reduce((sum, item) => sum + item.population, 0) > 0 ? (
+                    <PieChart
+                        data={pieData}
+                        width={Dimensions.get("window").width - SPACING.md * 2}
+                        height={150}
+                        chartConfig={{
+                            color: (opacity = 1) => `rgba(139, 92, 246, ${opacity})`,
+                        }}
+                        accessor={"population"}
+                        backgroundColor={"transparent"}
+                        paddingLeft={"15"}
+                    />
+                ) : (
+                    <Text style={styles.empty}>No attendance logs yet.</Text>
+                )}
             </BlurView>
 
             <BlurView intensity={30} tint="dark" style={styles.chartContainer}>
@@ -179,7 +186,9 @@ export default function WorkerDashboard() {
                 />
             </BlurView>
 
-            <Text style={styles.sectionTitle}>My Tasks</Text>
+            <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>My Tasks</Text>
+            </View>
         </View>
     );
 
@@ -189,7 +198,7 @@ export default function WorkerDashboard() {
                 <View>
                     <Text style={styles.greeting}>Hello,</Text>
                     <Text style={styles.name}>{user?.username ?? 'Worker'}</Text>
-                    
+
                     {/* Backend Connection Status Badge */}
                     <View style={[styles.connectionBadge, { backgroundColor: isConnected ? 'rgba(0, 230, 118, 0.15)' : 'rgba(255, 20, 147, 0.15)' }]}>
                         {isConnected ? (
@@ -282,12 +291,32 @@ const styles = StyleSheet.create({
         borderRadius: RADIUS.md,
     },
     logoutText: { color: COLORS.textSecondary, fontSize: FONT_SIZES.xs, fontWeight: '600' },
+    sectionHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: SPACING.sm,
+        marginTop: SPACING.md,
+    },
     sectionTitle: {
         fontSize: FONT_SIZES.lg,
         fontWeight: '700',
         color: COLORS.white,
-        marginBottom: SPACING.sm,
-        marginTop: SPACING.md,
+    },
+    addBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#8B5CF6',
+        paddingHorizontal: SPACING.md,
+        paddingVertical: 6,
+        borderRadius: RADIUS.full,
+        gap: 4,
+    },
+    addBtnText: {
+        color: COLORS.white,
+        fontWeight: 'bold',
+        fontSize: FONT_SIZES.xs,
+        textTransform: 'uppercase',
     },
     list: { paddingBottom: SPACING.xxl },
     loader: { marginTop: SPACING.xxl },
